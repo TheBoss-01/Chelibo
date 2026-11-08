@@ -24,15 +24,19 @@
   y los efectos de fondo se pausan tras 12 s sin interacción. Con "movimiento reducido" la página es estática.
 - Intros (sección 6 del script), se elige con `intro` en `CHELIBO` ('sello' por defecto) o con `#intro-sello` / `#intro-moneda`
   al final del enlace para probarlas:
-  - 'sello': una mano con guante estampa el logo en tinta granate sobre una tabla de madera; la cámara se pone de
-    frente, un frente de fuego con llamas y chispas lo convierte en oro (la madera de alrededor queda chamuscada) y el
-    sello dorado vuela a la portada, donde lo sustituye el sello interactivo (`skipSpin`/`heroShown`, sin giro de entrada).
-    La parrilla se quitó a petición del usuario. Su referencia para el estampado es un vídeo de YouTube
-    (https://youtu.be/_NUIKNBSyy0) que no se puede abrir desde la nube: pedirle una grabación o capturas.
-    La tabla, el tampón y la mano se renderizan UNA vez en WebGL (trazado de rayos por campos de distancia,
-    `GLSL_F` y `studio()`), y después se animan en canvas 2D (desenfoque de profundidad y de movimiento, sombra, brazo).
-    Sin WebGL por hardware, con `lite` o si la GPU tarda (>350 ms el fondo) se usa el tampón 2D de reserva (`makeStamp`).
-    Para probar el 3D en el navegador de pruebas (SwiftShader) hay que forzarlo con `?gl=1`.
+  - 'sello': un tampón de madera de cerezo barnizada (sin mano) llega en arco, estampa el logo en tinta roja sobre
+    papel negro, se balancea, se despega rodando por un canto y se va; la cámara pasa de tres cuartos a cenital; un
+    frente de fuego con llamas y chispas convierte la tinta en oro y el sello dorado vuela a la portada, donde lo
+    sustituye el sello interactivo (`skipSpin`/`heroShown`, sin giro de entrada).
+    Referencia del usuario: un vídeo "Animación Sello" (@FTANIMATIONPLAY) que subió como grabación de pantalla: tampón de
+    madera clara y barnizada, base gruesa, cuello torneado y pomo esférico. Antes hubo mano con guante y parrilla; se
+    quitaron a petición suya.
+    El tampón, el papel, la tinta y las sombras se renderizan en 3D en tiempo real (WebGL, trazado de rayos por campos de
+    distancia: `GLSL_S`, `glScene()`, `camAt()`, `stamp3At()`). En `fire0` la huella se copia del lienzo 3D (`handoff`) y
+    el fuego sigue en canvas 2D (`composeSeal`), sin salto visible. Al preparar se mide la GPU: si va lenta baja la
+    resolución, y si ni así llega (o no hay WebGL por hardware, o es `lite`) se usa el tampón 2D de reserva (`makeStamp`).
+    Pruebas en el navegador de la nube (SwiftShader): `?gl=1` fuerza el 3D, `?gls=0.5` fija la resolución del 3D y
+    `?t=1200` congela la intro en ese milisegundo.
   - 'moneda': la moneda dorada gira y la cámara entra en ella (la intro original).
   Para añadir otra versión: una función `introXxx()` que llame a `finish()` (o `finish('handoff')`) y su nombre en la regex de `hashIntro`.
 - Temas de temporada (sección 10): `tema` en `CHELIBO` ('navidad' o 'normal'), o `#tema-navidad` / `#tema-normal`.
