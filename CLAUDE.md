@@ -24,11 +24,22 @@
   y los efectos de fondo se pausan tras 12 s sin interacción. Con "movimiento reducido" la página es estática.
 - Intros (sección 6 del script), se elige con `intro` en `CHELIBO` ('sello' por defecto) o con `#intro-sello` / `#intro-moneda`
   al final del enlace para probarlas:
-  - 'sello': un tampón de madera (pintado una vez por anillos, con luz y veta) estampa el logo en tinta granate,
-    la cámara se pone de frente, un frente de fuego con llamas y chispas lo convierte en oro, y el sello dorado
-    vuela a la portada, donde lo sustituye el sello interactivo (`skipSpin`/`heroShown`, sin giro de entrada).
+  - 'sello': una mano con guante de parrillero estampa el logo en tinta granate sobre una tabla de asado, con la
+    parrilla y las brasas en primer plano; la cámara se pone de frente, las brasas hacen una llamarada, un frente de
+    fuego lo convierte en oro (la madera de alrededor queda chamuscada) y el sello dorado vuela a la portada, donde lo
+    sustituye el sello interactivo (`skipSpin`/`heroShown`, sin giro de entrada).
+    La tabla, la parrilla, el tampón y la mano se renderizan UNA vez en WebGL (trazado de rayos por campos de distancia,
+    `GLSL_F` y `studio()`), y después se animan en canvas 2D (desenfoque de profundidad y de movimiento, sombra, brazo).
+    Sin WebGL por hardware, con `lite` o si la GPU tarda (>350 ms el fondo) se usa el tampón 2D de reserva (`makeStamp`).
+    Para probar el 3D en el navegador de pruebas (SwiftShader) hay que forzarlo con `?gl=1`.
   - 'moneda': la moneda dorada gira y la cámara entra en ella (la intro original).
   Para añadir otra versión: una función `introXxx()` que llame a `finish()` (o `finish('handoff')`) y su nombre en la regex de `hashIntro`.
+- Temas de temporada (sección 10): `tema` en `CHELIBO` ('navidad' o 'normal'), o `#tema-navidad` / `#tema-normal`.
+  Navidad: nieve continua (dos láminas pintadas una vez que caen con animación CSS, sin coste de procesador en reposo),
+  guirnaldas en canvas (`data-guirnalda`, luces en dos capas que titilan), nieve que se acumula sobre las tarjetas de la
+  galería (`.cap`, 42 s), gorro en el logo de la cabecera, acebo en los titulares, estrellas y textos de fiesta.
+  Evitar capas animadas grandes (p. ej. lienzos del tamaño de la portada con opacidad animada): encarecen mucho la composición.
+- En móvil la portada va centrada (sello, textos y botones).
 - Sello interactivo (sección 9 del script): al terminar la entrada se puede arrastrar (inercia y se asienta de cara
   con un muelle), tocar/clic = lanzamiento como una moneda, teclado (Enter y flechas). En móvil, deslizar en vertical
   sigue haciendo scroll (`touch-action: pan-y`). La calidad baja sola (tabla `QL`) si hay más de un 15 % de fotogramas lentos.
