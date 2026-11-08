@@ -1,9 +1,6 @@
 # Notas del repositorio
 
-## Proyectos
-- `index.html` (raíz): demo de efecto liquid glass hecha con CSS y filtros SVG, sin librerías.
-  La librería "websiteglass" no existe en npm y websiteglass.com no es accesible desde las sesiones en la nube.
-- `chelibo/`: web del foodtruck Chelibo. Instagram: https://www.instagram.com/chelibo_
+Repositorio de la web del foodtruck Chelibo. Instagram: https://www.instagram.com/chelibo_
 
 ## Chelibo
 - Plantilla: `chelibo/src/pagina.html`. No edites `chelibo/index.html` a mano: se genera.
