@@ -22,6 +22,13 @@
 - Rendimiento: el sello 3D se dibuja en un `<canvas>` (una sola capa) y solo se redibuja si cambia el giro;
   el flotado, la firma y las cintas son animaciones de GPU. El bucle JS se para cuando no hay nada que mover
   y los efectos de fondo se pausan tras 12 s sin interacción. Con "movimiento reducido" la página es estática.
+- Intros (sección 6 del script), se elige con `intro` en `CHELIBO` ('sello' por defecto) o con `#intro-sello` / `#intro-moneda`
+  al final del enlace para probarlas:
+  - 'sello': un tampón de madera (pintado una vez por anillos, con luz y veta) estampa el logo en tinta granate,
+    la cámara se pone de frente, un frente de fuego con llamas y chispas lo convierte en oro, y el sello dorado
+    vuela a la portada, donde lo sustituye el sello interactivo (`skipSpin`/`heroShown`, sin giro de entrada).
+  - 'moneda': la moneda dorada gira y la cámara entra en ella (la intro original).
+  Para añadir otra versión: una función `introXxx()` que llame a `finish()` (o `finish('handoff')`) y su nombre en la regex de `hashIntro`.
 - Sello interactivo (sección 9 del script): al terminar la entrada se puede arrastrar (inercia y se asienta de cara
   con un muelle), tocar/clic = lanzamiento como una moneda, teclado (Enter y flechas). En móvil, deslizar en vertical
   sigue haciendo scroll (`touch-action: pan-y`). La calidad baja sola (tabla `QL`) si hay más de un 15 % de fotogramas lentos.

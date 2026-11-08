@@ -71,6 +71,23 @@
   .intro.out { opacity: 0; pointer-events: none; transition: opacity .7s .35s ease-in; }
   .intro.out canvas { transform: scale(14); opacity: 0; transition: transform 1.1s cubic-bezier(.65,0,.9,.35), opacity .5s .45s; }
   .intro.out .tag, .intro.out .skip { opacity: 0; animation: none; transition: opacity .3s; }
+  /* Versión "sello": mesa oscura, tampón de madera, fuego que convierte la tinta en oro */
+  .intro.v-sello { background: transparent; animation-delay: 11s; }
+  .intro .surface, .intro .fireglow { position: absolute; inset: 0; pointer-events: none; }
+  .intro .surface { background: radial-gradient(ellipse 75% 60% at var(--sx, 50%) var(--sy, 46%), #241d15 0%, #130f0b 46%, #070605 100%); }
+  .intro .surface::after { content: ""; position: absolute; inset: 0; opacity: .07;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .intro .fireglow { opacity: 0; background: radial-gradient(circle at var(--sx, 50%) var(--sy, 46%), rgba(255,146,48,.34), rgba(255,96,20,.12) 24%, rgba(255,80,10,0) 52%); }
+  .intro #introFx { left: 0; top: 0; width: 100%; height: 100%; }
+  .intro:not(.v-sello) .surface, .intro:not(.v-sello) .fireglow, .intro:not(.v-sello) #introFx { display: none; }
+  .intro.v-sello .glow { display: none; }
+  .intro.v-sello .tag { animation: none; transform: translateY(14px); letter-spacing: .9em; transition: opacity .9s, transform .9s var(--ease), letter-spacing .9s var(--ease); }
+  .intro.v-sello.show-tag .tag { opacity: 1; transform: none; letter-spacing: .6em; }
+  .intro.v-sello.out canvas { transform: none; }
+  .intro.reveal { pointer-events: none; }
+  .intro.reveal .surface { opacity: 0; transition: opacity .75s ease .05s; }
+  .intro.reveal .stage { transition: transform .85s cubic-bezier(.55, 0, .15, 1); }
+  .intro.v-sello.reveal .tag, .intro.reveal .skip { opacity: 0; transition: opacity .3s; }
 
   /* ---------- Barra de progreso y cabecera ---------- */
   .prog { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 60; background: var(--gold-grad); transform-origin: 0 50%; transform: scaleX(0); pointer-events: none; }
@@ -114,9 +131,11 @@
   .sello-wrap > .floaty { position: absolute; inset: -3%; pointer-events: none; animation: floaty 11s ease-in-out infinite; }
   .sello-wrap canvas { display: block; width: 100%; height: 100%; visibility: hidden; }
   .sello-wrap.has-canvas canvas { visibility: visible; }
+  .sello-wrap:not(.float-on) .floaty { animation: none; }
   @keyframes floaty {
-    0%, 100% { transform: perspective(1200px) rotateY(-7deg) rotateX(3deg) translate3d(0, 0, 0); }
-    50% { transform: perspective(1200px) rotateY(7deg) rotateX(-3deg) translate3d(0, -8px, 0); }
+    0%, 100% { transform: perspective(1200px) rotateY(0deg) rotateX(0deg) translate3d(0, 0, 0); }
+    25% { transform: perspective(1200px) rotateY(7deg) rotateX(-3deg) translate3d(0, -6px, 0); }
+    75% { transform: perspective(1200px) rotateY(-7deg) rotateX(3deg) translate3d(0, 4px, 0); }
   }
   .sleep .floaty { animation-play-state: paused; }
   /* Sello interactivo: se arrastra con inercia, se lanza con un toque y se asienta de cara */
@@ -295,7 +314,10 @@
 </svg>
 
 <div class="intro" id="intro" aria-hidden="true">
+  <div class="surface"></div>
+  <div class="fireglow"></div>
   <div class="glow"></div>
+  <canvas id="introFx"></canvas>
   <div class="stage"><canvas id="introCoin"></canvas></div>
   <div class="tag">FOODTRUCK</div>
   <span class="skip">Toca para saltar</span>
@@ -457,6 +479,7 @@ var CHELIBO = {
   facebook: '',      // Ej.: 'https://www.facebook.com/chelibo'
   instagram: 'https://www.instagram.com/chelibo_',
   mensajeWhatsApp: 'Hola, Chelibo. Quería hacer una consulta.',
+  intro: 'sello',    // Animación de entrada: 'sello' (tampón de madera y fuego) o 'moneda' (moneda dorada que gira)
   fotos: ['', '', '', '', '', '']   // En orden; las tres primeras salen también en la carta. Ej.: 'fotos/plato-1.jpg'
 };
 
@@ -676,27 +699,35 @@ var CHELIBO = {
   /* Niveles de calidad del sello de la portada [densidad de píxeles, capas]. Se baja solo si va lento. */
   var QL = lite ? [[1.25, 12], [1, 8]] : [[2, 18], [1.5, 12], [1.15, 8]];
 
-  /* ---------- 6. Intro ---------- */
-  var readyT = null, introOn = false;
+  /* ---------- 6. Intro: dos versiones, 'sello' y 'moneda' (se elige en CHELIBO.intro o con #intro-sello / #intro-moneda) ---------- */
+  var readyT = null, introOn = false, skipSpin = false, heroShown = false, floatOn = false;
   function ready() { if (readyT !== null) return; readyT = now(); root.classList.add('ready'); kick(); }
   var heroWrap = $('#heroWrap'), heroCanvas = $('#heroCoin');
   var hero = Coin(heroCanvas, { layers: QL[0][1], depth: .08, pad: 1.06, dpr: QL[0][0], tintScale: .45, tints: TINTS });
-  if (!intro) ready();
-  else {
-    introOn = true;
-    root.classList.add('lock');
-    var introCoin = Coin($('#introCoin'), { layers: lite ? 9 : 14, depth: .11, pad: 1.5, dpr: lite ? 1.25 : 2, tintScale: .5, tints: TINTS });
-    var done = false, safety = setTimeout(finish, 6500);
-    function finish() {
-      if (done) return;
-      done = true; clearTimeout(safety);
-      intro.classList.add('out'); root.classList.remove('lock');
+  var hashIntro = /^#intro-(sello|moneda)$/.exec(location.hash || '');
+  var introName = hashIntro ? hashIntro[1] : (C.intro === 'moneda' ? 'moneda' : 'sello');
+  var done = false, safety = 0;
+  function finish(mode) {
+    if (done || !intro) return;
+    done = true; clearTimeout(safety); root.classList.remove('lock');
+    if (mode === 'handoff') {
+      /* El sello dorado de la intro vuela a la portada y allí pasa a ser el sello interactivo */
+      skipSpin = true; hk = 0; intro.classList.add('reveal');
+      setTimeout(function () { introOn = false; ready(); }, 150);
+      setTimeout(function () { heroShown = true; kick(); }, 860);
+      setTimeout(function () { if (intro.parentNode) intro.parentNode.removeChild(intro); }, 900);
+    } else {
+      intro.classList.add('out');
       setTimeout(function () { introOn = false; ready(); }, 380);
       setTimeout(function () { if (intro.parentNode) intro.parentNode.removeChild(intro); }, 1300);
-      measureSoon();
     }
-    intro.addEventListener('pointerdown', finish);
-    window.addEventListener('keydown', finish);
+    measureSoon();
+  }
+  function mulberry(a) { return function () { a = a + 0x6D2B79F5 | 0; var q = Math.imul(a ^ a >>> 15, 1 | a); q = q + Math.imul(q ^ q >>> 7, 61 | q) ^ q; return ((q ^ q >>> 14) >>> 0) / 4294967296; }; }
+
+  /* Versión 'moneda': la moneda dorada gira y la cámara entra en ella */
+  function introMoneda() {
+    var introCoin = Coin($('#introCoin'), { layers: lite ? 9 : 14, depth: .11, pad: 1.5, dpr: lite ? 1.25 : 2, tintScale: .5, tints: TINTS });
     selloImgs().then(function (im) {
       introCoin.load(im);
       if (!introCoin.ok) { finish(); return; }
@@ -708,7 +739,336 @@ var CHELIBO = {
         if (el > 3300) { finish(); return; }
         requestAnimationFrame(spin);
       })();
-    }, finish);
+    }, function () { finish(); });
+  }
+
+  /* Versión 'sello': un tampón de madera estampa el logo en tinta, el fuego lo recorre y lo deja de oro,
+     y ese sello dorado vuela a su sitio en la portada. Todo en canvas 2D: el tampón se pinta una vez. */
+  function introSello() {
+    var fx = $('#introFx'), stage = $('.stage', intro), coinCv = $('#introCoin'), glowEl = $('.fireglow', intro);
+    var g = fx && fx.getContext ? fx.getContext('2d') : null;
+    if (!g || !stage || !coinCv) { finish(); return; }
+    var dpr = Math.min(window.devicePixelRatio || 1, lite ? 1.25 : 2);
+    fx.width = Math.round(innerWidth * dpr); fx.height = Math.round(innerHeight * dpr);
+    var sr = stage.getBoundingClientRect();
+    var SP = Math.max(64, Math.round(sr.width * dpr));
+    var CX = (sr.left + sr.width / 2) * dpr, CY = (sr.top + sr.height / 2) * dpr;
+    intro.style.setProperty('--sx', (sr.left + sr.width / 2).toFixed(1) + 'px');
+    intro.style.setProperty('--sy', (sr.top + sr.height / 2).toFixed(1) + 'px');
+    var PHI = 55 * DEG, SIN = Math.sin(PHI), COS = Math.cos(PHI);   /* la cámara mira la mesa desde arriba e inclinada */
+    var RD = SP * .53, PRE = lite ? 1.3 : 1.45, K = SP / 660;
+    var rnd = mulberry(7), A = {}, P = [], t0 = 0, lastTk = 0, spawnAcc = 0, emberAcc = 0, glowLast = -1, sealState = '', tagShown = false;
+    /* Guion (ms): bajar, estampar, levantar, cámara de frente, fuego, enfriado y brillo, vuelo a la portada */
+    var TL = { desc0: 200, hit: 900, lift0: 1150, lift1: 1600, tilt1: 1950, fire0: 1950, fire1: 3250, sheen0: 3350, sheen1: 3850, tag: 3300, fly: 3900 };
+
+    function mk(w, h) { var c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h || w)); return c; }
+    function tint(src, col) { var c = mk(SP), x = c.getContext('2d'); x.drawImage(src, 0, 0, SP, SP); x.globalCompositeOperation = 'source-in'; x.fillStyle = col; x.fillRect(0, 0, SP, SP); return c; }
+    function nrm(v) { var l = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); return [v[0] / l, v[1] / l, v[2] / l]; }
+
+    /* Tampón de madera torneado: base con goma, virola de latón, cuello y pomo. Se pinta por anillos con luz y veta. */
+    function makeStamp(R) {
+      var tP = SIN / COS, Wd = Math.ceil(R * 2.24), Hd = Math.ceil(R * 2.18);
+      var c = mk(Wd, Hd), x = c.getContext('2d'), ox = Wd / 2, oy = Math.round(R * 1.12);
+      var L = nrm([-.55, .5, .72]), Hv = nrm([L[0], L[1] + COS, L[2] + SIN]);
+      var G = 512, grain = new Float32Array(G), i, k;
+      for (k = 0; k < 7; k++) { var f = 4 + (rnd() * 34 | 0), ph = rnd() * 6.283, am = .55 / (k + 1); for (i = 0; i < G; i++) grain[i] += Math.sin(i / G * 6.283 * f + ph) * am; }
+      var MAT = {
+        rub: { c: [40, 26, 21], gr: 0, ks: .05, sh: 6 },
+        wood: { c: [122, 76, 42], gr: .2, ks: .2, sh: 26 },
+        brass: { c: [205, 160, 80], gr: 0, ks: .85, sh: 36 },
+        neck: { c: [110, 67, 37], gr: .22, ks: .18, sh: 24 },
+        knob: { c: [130, 82, 46], gr: .18, ks: .28, sh: 30 }
+      };
+      function prof(h) {
+        if (h < .045) return [1, MAT.rub];
+        if (h < .30) { var b = h > .24 ? Math.sqrt(Math.max(0, 1 - Math.pow((h - .24) / .06, 2))) : 1; return [.955 + .045 * b, MAT.wood]; }
+        if (h < .36) return [.40, MAT.brass];
+        if (h < .746) return [.25 - .07 * Math.sin(Math.PI * (h - .36) / .386), MAT.neck];
+        if (h < 1.57) return [Math.sqrt(Math.max(0, .2025 - (h - 1.12) * (h - 1.12))), MAT.knob];
+        return null;
+      }
+      function colA(m, u, ca, sa, h) {
+        var st = Math.sqrt(Math.max(0, 1 - u * u)), n0 = u * ca, n1 = st * ca, n2 = sa;
+        var lam = Math.max(0, n0 * L[0] + n1 * L[1] + n2 * L[2]);
+        var sp = Math.pow(Math.max(0, n0 * Hv[0] + n1 * Hv[1] + n2 * Hv[2]), m.sh) * m.ks * 255;
+        var gi = ((Math.acos(clamp(u, -1, 1)) / Math.PI * 240 + h * 26) | 0) % G;
+        var k2 = (.26 + .86 * lam) * (1 + grain[gi] * m.gr);
+        return [m.c[0] * k2 + sp, m.c[1] * k2 + sp, m.c[2] * k2 + sp * .9];
+      }
+      function css(c3, w) { w = w || 1; return 'rgb(' + Math.min(255, c3[0] * w | 0) + ',' + Math.min(255, c3[1] * w | 0) + ',' + Math.min(255, c3[2] * w | 0) + ')'; }
+      function topFace(h, rr, m, endGrain) {
+        var rp = rr * R, yc = oy - h * R * COS, base = colA(m, 0, 0, 1, h);
+        x.save(); x.translate(ox, yc); x.scale(1, SIN);
+        if (endGrain) {
+          var rg = x.createRadialGradient(0, 0, 0, 0, 0, rp);
+          for (var q = 0; q <= 22; q++) rg.addColorStop(q / 22, css(base, .9 + .1 * Math.sin(q * 2.3 + 1) - q * .004));
+          x.fillStyle = rg;
+        } else x.fillStyle = css(base);
+        x.beginPath(); x.arc(0, 0, rp, 0, 6.2832); x.fill();
+        var hl = x.createRadialGradient(-rp * .35, -rp * .35, 0, -rp * .35, -rp * .35, rp * .95);
+        hl.addColorStop(0, 'rgba(255,240,215,' + (endGrain ? .16 : .4) + ')'); hl.addColorStop(1, 'rgba(255,240,215,0)');
+        x.fillStyle = hl; x.beginPath(); x.arc(0, 0, rp, 0, 6.2832); x.fill();
+        x.restore();
+      }
+      var step = .9 / (R * COS), baseTop = false, brassTop = false;
+      x.lineWidth = 2.2;
+      for (var h = 0; h <= 1.57; h += step) {
+        if (!baseTop && h >= .30) { baseTop = true; topFace(.30, .955, MAT.wood, true); }
+        if (!brassTop && h >= .36) { brassTop = true; topFace(.36, .40, MAT.brass, false); }
+        var pr = prof(h); if (!pr || pr[0] <= 0) continue;
+        var pa = prof(Math.min(1.569, h + step)), pb = prof(Math.max(0, h - step));
+        var same1 = pa && pa[1] === pr[1], same0 = pb && pb[1] === pr[1];
+        var dr = (same1 ? pa[0] : pr[0]) - (same0 ? pb[0] : pr[0]), dh = (same1 ? step : 0) + (same0 ? step : 0);
+        var ta = dh > 0 ? -dr / dh : 0, ca = 1 / Math.sqrt(1 + ta * ta), sa = ta * ca;
+        var kv = -ta * tP, a0, a1;
+        if (kv >= 1) continue;
+        if (kv <= -1) { a0 = 0; a1 = 6.2832; } else { a0 = Math.asin(kv); a1 = Math.PI - a0; }
+        var rp = pr[0] * R, yc = oy - h * R * COS;
+        if (rp < 1.5) { x.fillStyle = css(colA(pr[1], 0, ca, sa, h)); x.fillRect(ox - 1, yc - 1, 2, 2); continue; }
+        var gr = x.createLinearGradient(ox - rp, 0, ox + rp, 0);
+        for (var q = 0; q <= 24; q++) gr.addColorStop(q / 24, css(colA(pr[1], q / 12 - 1, ca, sa, h)));
+        x.strokeStyle = gr;
+        x.beginPath(); x.ellipse(ox, yc, rp, rp * SIN, 0, a0, a1); x.stroke();
+      }
+      /* Brillo del barniz en el pomo */
+      var kc = oy - 1.12 * R * COS, kr = .45 * R, hx = ox - kr * .36, hy = kc - kr * .5;
+      var hl2 = x.createRadialGradient(hx, hy, 0, hx, hy, kr * .62);
+      hl2.addColorStop(0, 'rgba(255,246,230,.55)'); hl2.addColorStop(1, 'rgba(255,246,230,0)');
+      x.save(); x.beginPath(); x.arc(ox, kc, kr * .985, 0, 6.2832); x.clip();
+      x.fillStyle = hl2; x.fillRect(hx - kr, hy - kr, kr * 2, kr * 2);
+      x.restore();
+      return { cv: c, ox: ox, oy: oy };
+    }
+    /* Huella del sello: tinta granate irregular y un poco de relieve */
+    function makeImprint() {
+      var c = mk(SP), x = c.getContext('2d'), o = Math.max(1, 1.4 * dpr);
+      x.globalAlpha = .6; x.drawImage(tint(A.white, '#000'), -o, -o);
+      x.globalAlpha = .14; x.drawImage(tint(A.white, '#ffd9a0'), o * .8, o * .8);
+      x.globalAlpha = 1;
+      var ink = tint(A.white, '#7c1d13'), ix = ink.getContext('2d');
+      ix.globalCompositeOperation = 'destination-out';
+      for (var i = 0; i < SP * 2.5; i++) { ix.globalAlpha = rnd() * .55; ix.beginPath(); ix.arc(rnd() * SP, rnd() * SP, (rnd() * .0045 + .0008) * SP, 0, 6.2832); ix.fill(); }
+      x.drawImage(ink, 0, 0);
+      return c;
+    }
+    function makeSprite(w, h, stops, sy, cy) {
+      var c = mk(w, h), x = c.getContext('2d'), rr = w / 2;
+      x.save(); x.translate(w / 2, cy); x.scale(1, sy);
+      var gr = x.createRadialGradient(0, 0, 0, 0, 0, rr);
+      for (var i = 0; i < stops.length; i++) gr.addColorStop(stops[i][0], stops[i][1]);
+      x.fillStyle = gr; x.beginPath(); x.arc(0, 0, rr, 0, 6.2832); x.fill(); x.restore();
+      return c;
+    }
+    /* Mapa de llegada del fuego: de abajo arriba, con ruido para que el frente sea irregular */
+    function makeBurn() {
+      var n = lite ? 150 : 210, v = new Float32Array(n * n), i, x, y;
+      function grid(m) { var a = new Float32Array((m + 1) * (m + 1)); for (var j = 0; j < a.length; j++) a[j] = rnd(); return a; }
+      var octs = [[5, .55, grid(5)], [11, .3, grid(11)], [23, .15, grid(23)]];
+      function vn(o, xn, yn) {
+        var m = o[0], gx = xn * m, gy = yn * m, ix = Math.min(m - 1, gx | 0), iy = Math.min(m - 1, gy | 0), fx0 = gx - ix, fy0 = gy - iy, a = o[2], w = m + 1;
+        fx0 = fx0 * fx0 * (3 - 2 * fx0); fy0 = fy0 * fy0 * (3 - 2 * fy0);
+        var v00 = a[iy * w + ix], v10 = a[iy * w + ix + 1], v01 = a[(iy + 1) * w + ix], v11 = a[(iy + 1) * w + ix + 1];
+        return (v00 + (v10 - v00) * fx0) * (1 - fy0) + (v01 + (v11 - v01) * fx0) * fy0;
+      }
+      var lo = 1e9, hi = -1e9;
+      for (y = 0; y < n; y++) for (x = 0; x < n; x++) {
+        var xn = x / (n - 1), yn = y / (n - 1), nz = 0;
+        for (var k = 0; k < 3; k++) nz += vn(octs[k], xn, yn) * octs[k][1];
+        var val = (1 - yn) * .74 + Math.abs(xn - .5) * .16 + (nz - .5) * .42;
+        v[y * n + x] = val; if (val < lo) lo = val; if (val > hi) hi = val;
+      }
+      for (i = 0; i < v.length; i++) v[i] = (v[i] - lo) / (hi - lo);
+      var gc = mk(n), hc = mk(n), gx2 = gc.getContext('2d'), hx2 = hc.getContext('2d');
+      var gi = gx2.createImageData(n, n), hi2 = hx2.createImageData(n, n);
+      for (i = 0; i < n * n * 4; i += 4) { gi.data[i] = gi.data[i + 1] = gi.data[i + 2] = 255; hi2.data[i] = hi2.data[i + 1] = hi2.data[i + 2] = 255; }
+      /* Puntos del dibujo, ordenados por el momento en que les llega el fuego: ahí nacen las llamas */
+      var pts = [];
+      try {
+        var sm = mk(n), smx = sm.getContext('2d'); smx.drawImage(A.white, 0, 0, n, n);
+        var d = smx.getImageData(0, 0, n, n).data;
+        for (i = 0; i < n * n; i++) if (d[i * 4 + 3] > 140) pts.push(i);
+      } catch (er) { pts = []; }
+      if (!pts.length) for (i = 0; i < n * n; i++) { var qx = i % n / n - .5, qy = (i / n | 0) / n - .5; if (qx * qx + qy * qy < .2) pts.push(i); }
+      pts.sort(function (a, b) { return v[a] - v[b]; });
+      var pv = new Float32Array(pts.length); for (i = 0; i < pts.length; i++) pv[i] = v[pts[i]];
+      return { n: n, v: v, gc: gc, hc: hc, gx: gx2, hx: hx2, gi: gi, hi: hi2, pts: pts, pv: pv };
+    }
+    function prepare(im) {
+      A.gold = mk(SP); A.gold.getContext('2d').drawImage(im[0], 0, 0, SP, SP);
+      A.white = mk(SP); A.white.getContext('2d').drawImage(im[1], 0, 0, SP, SP);
+      A.imprint = makeImprint();
+      A.hot = tint(A.white, '#ffa43a');
+      A.seal = mk(SP); A.sx = A.seal.getContext('2d');
+      A.tmp = mk(SP); A.tx = A.tmp.getContext('2d');
+      A.bw = Math.max(16, Math.round(SP / 6)); A.bloom = mk(A.bw); A.bx = A.bloom.getContext('2d');
+      A.bloom2 = mk(A.bw); A.b2x = A.bloom2.getContext('2d');
+      A.stamp = makeStamp(RD * PRE);
+      A.shadow = makeSprite(128, 128, [[0, 'rgba(0,0,0,.85)'], [.55, 'rgba(0,0,0,.45)'], [1, 'rgba(0,0,0,0)']], 1, 64);
+      A.flame = makeSprite(64, 128, [[0, 'rgba(255,248,220,1)'], [.22, 'rgba(255,214,110,.95)'], [.5, 'rgba(255,128,30,.55)'], [1, 'rgba(200,40,0,0)']], 2, 82);
+      A.ember = makeSprite(32, 32, [[0, 'rgba(255,250,225,1)'], [.3, 'rgba(255,190,90,.85)'], [1, 'rgba(255,90,10,0)']], 1, 16);
+      A.burn = makeBurn();
+    }
+    function burnMasks(T) {
+      var B = A.burn, v = B.v, gd = B.gi.data, hd = B.hi.data, N = v.length;
+      for (var i = 0, j = 3; i < N; i++, j += 4) {
+        var d = T - v[i];
+        gd[j] = d <= 0 ? 0 : d >= .05 ? 255 : d * 5100;
+        hd[j] = d >= 0 ? (d > .5 ? 0 : 255 * Math.exp(-d * 9)) : (d < -.09 ? 0 : 255 * Math.exp(-d * d * 1100));
+      }
+      B.gx.putImageData(B.gi, 0, 0); B.hx.putImageData(B.hi, 0, 0);
+    }
+    /* El sello en su lienzo: tinta, oro donde ya pasó el fuego, calor junto al frente y brillo final */
+    function composeSeal(T, sh) {
+      var s = A.sx, x = A.tx, B = A.burn;
+      s.globalCompositeOperation = 'source-over'; s.clearRect(0, 0, SP, SP);
+      if (T > 1.55) s.drawImage(A.gold, 0, 0);
+      else {
+        s.drawImage(A.imprint, 0, 0);
+        if (T > -.06) {
+          burnMasks(T);
+          x.globalCompositeOperation = 'source-over'; x.clearRect(0, 0, SP, SP); x.drawImage(A.gold, 0, 0);
+          x.globalCompositeOperation = 'destination-in'; x.drawImage(B.gc, 0, 0, SP, SP);
+          s.drawImage(A.tmp, 0, 0);
+          x.globalCompositeOperation = 'source-over'; x.clearRect(0, 0, SP, SP); x.drawImage(A.hot, 0, 0);
+          x.globalCompositeOperation = 'destination-in'; x.drawImage(B.hc, 0, 0, SP, SP);
+          x.globalCompositeOperation = 'source-over';
+          s.globalCompositeOperation = 'lighter'; s.drawImage(A.tmp, 0, 0); s.globalCompositeOperation = 'source-over';
+          var bw = A.bw, b2 = A.b2x, rr = bw * .035;
+          A.bx.clearRect(0, 0, bw, bw); A.bx.drawImage(A.tmp, 0, 0, bw, bw);
+          b2.clearRect(0, 0, bw, bw); b2.globalCompositeOperation = 'lighter'; b2.globalAlpha = .14;
+          for (var k = 0; k < 8; k++) b2.drawImage(A.bloom, Math.cos(k * .785) * rr, Math.sin(k * .785) * rr);
+          b2.globalAlpha = .2; b2.drawImage(A.bloom, 0, 0);
+          b2.globalAlpha = 1; b2.globalCompositeOperation = 'source-over';
+        }
+      }
+      if (sh != null && sh > -.3 && sh < 1.3) {
+        var q0 = (sh - .2) * SP, q1 = (sh + .2) * SP, gg = s.createLinearGradient(q0, q0, q1, q1);
+        gg.addColorStop(0, 'rgba(255,247,220,0)'); gg.addColorStop(.5, 'rgba(255,247,220,.7)'); gg.addColorStop(1, 'rgba(255,247,220,0)');
+        s.globalCompositeOperation = 'source-atop'; s.fillStyle = gg; s.fillRect(0, 0, SP, SP); s.globalCompositeOperation = 'source-over';
+      }
+    }
+    function lowerBound(a, val) { var l = 0, h = a.length; while (l < h) { var m = (l + h) >> 1; if (a[m] < val) l = m + 1; else h = m; } return l; }
+    function spawn(T, dts) {
+      var B = A.burn, lo = lowerBound(B.pv, T - .012), hi = lowerBound(B.pv, T + .025), n = B.n;
+      if (hi <= lo) return;
+      spawnAcc += (lite ? 70 : 150) * dts; emberAcc += (lite ? 18 : 40) * dts;
+      function add(kind) {
+        if (P.length > (lite ? 160 : 320)) return;
+        var idx = B.pts[lo + (rnd() * (hi - lo) | 0)];
+        var px0 = CX + ((idx % n) / n - .5) * SP, py0 = CY + (((idx / n) | 0) / n - .5) * SP;
+        P.push(kind ? { k: 1, x: px0, y: py0, vx: (rnd() - .5) * 70 * K, vy: -(110 + rnd() * 150) * K, life: .8 + rnd() * .9, age: 0, s: .35 + rnd() * .5, ph: rnd() * 6.283 }
+                    : { k: 0, x: px0, y: py0, vx: 0, vy: -(55 + rnd() * 70) * K, life: .42 + rnd() * .38, age: 0, s: .55 + rnd() * .75, ph: rnd() * 6.283 });
+      }
+      while (spawnAcc >= 1) { spawnAcc--; add(0); }
+      while (emberAcc >= 1) { emberAcc--; add(1); }
+    }
+    function particles(dts) {
+      if (!P.length) return;
+      g.globalCompositeOperation = 'lighter';
+      for (var i = P.length - 1; i >= 0; i--) {
+        var q = P[i]; q.age += dts;
+        if (q.age >= q.life) { P[i] = P[P.length - 1]; P.pop(); continue; }
+        var f = q.age / q.life, a = Math.sin(Math.PI * f);
+        if (q.k === 0) {
+          q.y += q.vy * dts; q.x += Math.sin(q.age * 7 + q.ph) * 22 * K * dts;
+          var w = 34 * q.s * K * (.55 + .45 * a), h2 = w * 2;
+          g.globalAlpha = a * .85; g.drawImage(A.flame, q.x - w / 2, q.y - h2 * .64, w, h2);
+        } else {
+          q.vy *= 1 - .7 * dts; q.x += q.vx * dts; q.y += q.vy * dts;
+          var es = 9 * q.s * K;
+          g.globalAlpha = (1 - f) * (.55 + .45 * Math.sin(q.age * 28 + q.ph)); g.drawImage(A.ember, q.x - es, q.y - es, es * 2, es * 2);
+        }
+      }
+      g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    }
+    function drawStamp(H, offx, rot, sq) {
+      var s = (1 + .14 * H) / PRE, bx = CX + offx * RD, by = CY - H * RD * COS * (1 + .14 * H);
+      g.save(); g.translate(bx, by); g.rotate(rot); g.scale(s * (2 - sq), s * sq);
+      g.drawImage(A.stamp.cv, -A.stamp.ox, -A.stamp.oy);
+      g.restore();
+    }
+    function drawShadow(H, offx) {
+      var a = clamp(1 - H / 3, 0, 1); if (a <= 0) return;
+      var w = RD * (1.06 + H * .45), hh = w * SIN;
+      var sx = CX + offx * RD * .35 + RD * .07 * (1 + H), sy = CY + RD * .05 * (1 + H);
+      g.globalAlpha = .7 * a * a; g.drawImage(A.shadow, sx - w, sy - hh, w * 2, hh * 2); g.globalAlpha = 1;
+    }
+    function flyToHero() {
+      var cw = Math.round(coinCv.offsetWidth * dpr), ch = Math.round(coinCv.offsetHeight * dpr);
+      coinCv.width = cw; coinCv.height = ch;
+      coinCv.getContext('2d').drawImage(A.gold, (cw - SP) / 2, (ch - SP) / 2, SP, SP);
+      fx.style.visibility = 'hidden'; glowEl.style.opacity = '0';
+      intro.classList.add('reveal');
+      void stage.offsetWidth;   /* aplicar la transición antes de mover */
+      var hr = heroWrap.getBoundingClientRect(), s2 = stage.getBoundingClientRect();
+      var dx = hr.left + hr.width / 2 - (s2.left + s2.width / 2), dy = hr.top + hr.height / 2 - (s2.top + s2.height / 2);
+      stage.style.transform = 'translate3d(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px,0) scale(' + (hr.width / s2.width).toFixed(4) + ')';
+      finish('handoff');
+      setTimeout(function () { fx.width = fx.height = 1; ['gold', 'white', 'imprint', 'hot', 'seal', 'tmp', 'bloom', 'bloom2'].forEach(function (k) { if (A[k]) A[k].width = 1; }); if (A.stamp) A.stamp.cv.width = 1; }, 1200);
+    }
+    function tick() {
+      if (done) return;
+      var tn = now(), e = tn - t0, dts = lastTk ? Math.min(.05, (tn - lastTk) / 1000) : .016;
+      lastTk = tn;
+      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, fx.width, fx.height);
+      var shk = e > TL.hit && e < TL.hit + 260 ? (1 - (e - TL.hit) / 260) * 3.2 * dpr : 0;
+      if (shk) g.translate((rnd() - .5) * shk, (rnd() - .5) * shk);
+      /* Tampón: baja acelerando, estampa (aplasta y se balancea), sube y sale */
+      var H = 0, offx = 0, rot = 0, sq = 1, stampOn = true, u;
+      if (e < TL.desc0) { H = 3.4; offx = .45; rot = -10 * DEG; }
+      else if (e < TL.hit) { u = (e - TL.desc0) / (TL.hit - TL.desc0); H = 3.4 * (1 - u * u); offx = .45 * (1 - ease3(u)); rot = -10 * DEG * (1 - u); }
+      else if (e < TL.lift0) { u = e - TL.hit; sq = u < 140 ? 1 - .035 * Math.sin(Math.PI * u / 140) : 1; rot = Math.sin(u / 250 * Math.PI * 2) * 1.2 * DEG; }
+      else if (e < TL.lift1) { u = (e - TL.lift0) / (TL.lift1 - TL.lift0); H = 3.8 * Math.pow(u, 1.6); offx = .55 * u * u; rot = 12 * DEG * u; }
+      else stampOn = false;
+      /* Fuego: T es la posición del frente en el mapa de llegada */
+      var T = -1;
+      if (e >= TL.fire0) {
+        if (e <= TL.fire1) { u = (e - TL.fire0) / (TL.fire1 - TL.fire0); T = -.06 + 1.12 * (u * u * (3 - 2 * u) * .35 + u * .65); }
+        else T = 1.06 + (e - TL.fire1) / 300 * .45;
+      }
+      var sh = e > TL.sheen0 && e < TL.sheen1 ? (e - TL.sheen0) / (TL.sheen1 - TL.sheen0) * 1.6 - .3 : null;
+      if (e >= TL.hit) {
+        /* Con la cámara inclinada la huella se ve achatada; al ponerse de frente queda redonda */
+        var ty = e < TL.lift1 ? SIN : e < TL.tilt1 ? SIN + (1 - SIN) * (function (z) { return z < .5 ? 4 * z * z * z : 1 - Math.pow(-2 * z + 2, 3) / 2; })((e - TL.lift1) / (TL.tilt1 - TL.lift1)) : 1;
+        var state = T < -.06 ? 'tinta' : (T > 1.55 && sh === null ? 'oro' : '');
+        if (!state || state !== sealState) { composeSeal(T, sh); sealState = state; }
+        g.drawImage(A.seal, CX - SP / 2, CY - SP * ty / 2, SP, SP * ty);
+        if (T > -.06 && T < 1.5) {
+          g.globalCompositeOperation = 'lighter'; g.globalAlpha = .85; g.imageSmoothingQuality = 'high';
+          g.drawImage(A.bloom2, CX - SP / 2, CY - SP * ty / 2, SP, SP * ty);
+          g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+        }
+      }
+      if (stampOn) { drawShadow(H, offx); drawStamp(H, offx, rot, sq); }
+      if (T > -.02 && T < 1.03) spawn(T, dts);
+      particles(dts);
+      var act = T > -.05 && T < 1.3 ? Math.min(1, (T + .05) / .12) * Math.min(1, (1.3 - T) / .3) : 0;
+      if (Math.abs(act - glowLast) > .02) { glowLast = act; glowEl.style.opacity = act.toFixed(2); }
+      if (!tagShown && e > TL.tag) { tagShown = true; intro.classList.add('show-tag'); }
+      if (e > TL.fly) { flyToHero(); return; }
+      requestAnimationFrame(tick);
+    }
+    selloImgs().then(function (im) {
+      try { prepare(im); } catch (er) { finish(); return; }
+      if (done) return;
+      t0 = now(); requestAnimationFrame(tick);
+    }, function () { finish(); });
+  }
+
+  if (!intro) ready();
+  else {
+    introOn = true;
+    root.classList.add('lock');
+    intro.classList.add('v-' + introName);
+    safety = setTimeout(function () { finish(); }, introName === 'sello' ? 9500 : 6500);
+    intro.addEventListener('pointerdown', function () { finish(); });
+    window.addEventListener('keydown', function (ev) {
+      if (done) return;
+      /* Saltar la intro con una tecla no debe mover además la página */
+      if (/^( |Spacebar|ArrowDown|ArrowUp|PageDown|PageUp|Home|End)$/.test(ev.key)) ev.preventDefault();
+      finish();
+    });
+    if (introName === 'moneda') introMoneda(); else introSello();
   }
   selloImgs().then(function (im) { hero.load(im); if (hero.ok) { heroWrap.classList.add('has-canvas'); kick(); } }, function () {});
 
@@ -919,12 +1279,14 @@ var CHELIBO = {
     if (hero.ok && V.hero) {
       stepCoin(dt * .016667);
       var e = readyT === null ? 0 : ease3(clamp((t - readyT) / 1600, 0, 1));
-      if (!interactive && e >= 1) enableCoin();
+      var es = skipSpin ? 1 : e, op = skipSpin ? (heroShown ? 1 : 0) : e;
+      if (!interactive && e >= 1 && op >= 1) enableCoin();
+      if (!floatOn && op >= 1) { floatOn = true; heroWrap.classList.add('float-on'); }
       hk += ((drag || U.mode !== 'rest' ? 0 : 1) - hk) * (1 - Math.pow(.88, dt));
       var sc = Math.min(y, vh * 1.5);
-      var ryd = U.y + px * 22 * hk + sc * .2 - (1 - e) * 220, rxd = U.x - py * 14 * hk - sc * .02;
+      var ryd = U.y + px * 22 * hk + sc * .2 - (1 - es) * 220, rxd = U.x - py * 14 * hk - sc * .02;
       var ry = ryd * DEG, rx = rxd * DEG;
-      var hs = .55 + .45 * e - sc * .0001;
+      var hs = .55 + .45 * es - sc * .0001;
       var dAng = Math.abs(ry - lastDraw[0]) + Math.abs(rx - lastDraw[1]);
       var fast = dAng > 2 * DEG * dt;
       if (dAng + Math.abs(hs - lastDraw[2]) > 2e-4 || (lastFast && !fast)) {
@@ -936,7 +1298,7 @@ var CHELIBO = {
       /* El salto del lanzamiento va por CSS (GPU): subir y acercarse un poco */
       var ht = 'translate3d(0,' + (y * .1 - U.hop * (M.coinW || 300)).toFixed(1) + 'px,0)' + (U.hop > 0 ? ' scale(' + (1 + U.hop * .3).toFixed(4) + ')' : '');
       if (ht !== lastHeroT) { lastHeroT = ht; heroCanvas.style.transform = ht; }
-      if (Math.abs(e - lastE) > .001) { lastE = e; heroCanvas.style.opacity = e.toFixed(3); }
+      if (Math.abs(op - lastE) > .001) { lastE = op; heroCanvas.style.opacity = op.toFixed(3); }
     }
 
     /* Cintas: avanzan solas y se aceleran con el scroll */
