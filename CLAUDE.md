@@ -43,6 +43,10 @@
   Navidad: nieve continua (dos láminas pintadas una vez que caen con animación CSS, sin coste de procesador en reposo),
   guirnaldas en canvas (`data-guirnalda`, luces en dos capas que titilan), nieve que se acumula sobre las tarjetas de la
   galería (`.cap`, 42 s), gorro en el logo de la cabecera, acebo en los titulares, estrellas y textos de fiesta.
+  El sello interactivo de la portada lleva el mismo gorro (copia del SVG del de la cabecera, `heroHat`/`hatStep()`): sigue
+  la transformación de la cara del sello (`hero.m`), queda detrás cuando el sello se ve de espaldas, cae sobre el sello al
+  aparecer y se bambolea como un muelle al girarlo, lanzarlo y al caer. El giro de 16° va dentro del SVG y su caja se
+  ajusta al dibujo para que no sobresalga de la pantalla (a 900-1100 px de ancho el sello está cerca del borde).
   Evitar capas animadas grandes (p. ej. lienzos del tamaño de la portada con opacidad animada): encarecen mucho la composición.
 - En móvil la portada va centrada (sello, textos y botones).
 - Sello interactivo (sección 9 del script): al terminar la entrada se puede arrastrar (inercia y se asienta de cara

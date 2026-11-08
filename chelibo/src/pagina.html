@@ -284,6 +284,14 @@
   .mk { position: relative; display: block; }
   .hat { display: none; position: absolute; left: 15px; top: -12px; width: 30px; height: 24px; transform: rotate(16deg); pointer-events: none; }
   .tema-navidad .hat { display: block; }
+  /* Gorro del sello interactivo: el mismo del logo pequeño, pegado a la cara del sello (gira y se voltea con él).
+     .chat ocupa la caja del logo dentro de .floaty (que es un 6 % mayor); de espaldas queda detrás del sello */
+  .chat { display: none; position: absolute; inset: 2.83%; z-index: 2; pointer-events: none; will-change: transform; }
+  .tema-navidad .chat { display: block; }
+  .tema-navidad .sello-wrap canvas { position: relative; z-index: 1; }
+  .chat.back { z-index: 0; }
+  .chat .hat { left: 36.19%; top: -19.5%; width: 70.62%; height: 46.4%; transform: none; overflow: visible; }
+  .sello-wrap:not(.has-canvas) .chat { opacity: 1 !important; transform: none !important; }
   .tema-navidad .head { position: relative; }
   .holly { position: absolute; left: -4px; top: -24px; width: 54px; height: 34px; transform: rotate(-14deg); pointer-events: none; }
   .stars { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
@@ -612,7 +620,7 @@ var CHELIBO = {
   /* ---------- 10. Temas de temporada (CHELIBO.tema o #tema-navidad / #tema-normal) ---------- */
   var hashTema = /^#tema-(navidad|normal)$/.exec(location.hash || '');
   var temaName = hashTema ? hashTema[1] : (C.tema === 'navidad' ? 'navidad' : 'normal');
-  var garlands = [], snowEl = null, snowW = 0;
+  var garlands = [], snowEl = null, snowW = 0, heroHat = null;
   /* Capas de nieve: [densidad por píxel, tamaño mín-máx, opacidad, segundos en cruzar la pantalla, vaivén] */
   var SNOW = [{ k: 1 / 6500, s: [1.4, 4.4], o: [.35, .8], d: 21, sw: 12, sd: 4.8 }, { k: 1 / 42000, s: [5.5, 9.5], o: [.3, .55], d: 11, sw: 26, sd: 3.3 }];
   function drawSnow() {
@@ -739,6 +747,18 @@ var CHELIBO = {
     /* Acebo junto a los titulares, estrellas en la portada y textos de fiesta */
     var holly = '<svg class="holly" viewBox="0 0 64 40" aria-hidden="true"><g fill="#14502f"><path d="M30 22 C25 15 20 19 17 14 C15 19 10 16 7 20 C10 22 6 27 9 30 C13 27 16 32 20 28 C22 32 27 28 30 22 Z"/></g><g fill="#1d6b3c"><path d="M34 22 C39 15 44 19 47 14 C49 19 54 16 57 20 C54 22 58 27 55 30 C51 27 48 32 44 28 C42 32 37 28 34 22 Z"/></g><circle cx="29" cy="21" r="4" fill="#c41230"/><circle cx="36" cy="20" r="4" fill="#a90f28"/><circle cx="32.5" cy="26" r="4" fill="#d1183a"/><circle cx="27.6" cy="19.6" r="1.2" fill="#ffd9d9"/><circle cx="34.6" cy="18.6" r="1.2" fill="#ffd9d9"/></svg>';
     $$('#carta .head, #donde .head').forEach(function (h) { h.insertAdjacentHTML('beforeend', holly); });
+    /* El sello interactivo de la portada también lleva gorro: una copia exacta del SVG del logo pequeño. El giro de 16°
+       va dentro del SVG y la caja se ajusta al dibujo, para que no sobresalga de la pantalla en pantallas medianas */
+    var hat0 = $('.mk .hat'), fl = $('#heroWrap .floaty');
+    if (hat0 && fl) {
+      var NS = 'http://www.w3.org/2000/svg', hb = document.createElement('div'), hsv = hat0.cloneNode(true);
+      var hr16 = document.createElementNS(NS, 'g'), hg = document.createElementNS(NS, 'g');
+      hb.className = 'chat'; hb.setAttribute('aria-hidden', 'true'); hb.style.opacity = '0';
+      hsv.setAttribute('viewBox', '0.26 5.08 39.55 25.98'); hr16.setAttribute('transform', 'rotate(16 20 16)');
+      while (hsv.firstChild) hg.appendChild(hsv.firstChild);
+      hr16.appendChild(hg); hsv.appendChild(hr16); hb.appendChild(hsv); fl.appendChild(hb);
+      heroHat = { box: hb, svg: hsv, g: hg, a: 0, v: 0, dy: reduce ? 0 : -1.5, dv: 0, landed: reduce, back: false, ryd: null, rxd: null, hop: 0, lastA: 99, lastDy: 99, lastBox: '', op: -1, busy: false };
+    }
     var hero = $('.hero');
     if (hero) {
       var stars = '';
@@ -879,6 +899,7 @@ var CHELIBO = {
         ctx.beginPath(); T(zN); ctx.moveTo(px, py); ctx.lineTo(-px, -py); T(zF); ctx.lineTo(-px, -py); ctx.lineTo(px, py); ctx.closePath(); I(); ctx.fill();
         ctx.restore();
       }
+      self.m = { a: a, b: b, d: d, vx: vx, vy: vy, D: D, cw: cw, front: cy * cx >= 0 };
       T(zN); ctx.drawImage(base, -h, -h, W, W);
       if (sheen != null) {
         var q = sheen * 1.8 - .4;
@@ -1796,6 +1817,40 @@ void main(){
     }
     if (U.mode === 'rest' && !drag && U.hop === 0) heroWrap.classList.remove('held');
   }
+  /* Gorro (tema navideño): misma transformación que la cara del sello, delante o detrás según de qué lado se vea.
+     Se bambolea como un muelle: se inclina al girar el sello, da un respingo al saltar y al caer, y al aparecer
+     cae desde arriba sobre el sello */
+  function hatStep(ryd, rxd, ht, op, s) {
+    var H = heroHat, m = hero.m;
+    if (!m || !s) return;
+    var k = 1.06 * (M.coinW || 300) / (m.cw || 1);   /* píxeles CSS por píxel del lienzo del sello */
+    var bx = ht + ' matrix(' + m.a.toFixed(4) + ',' + m.b.toFixed(4) + ',0,' + m.d.toFixed(4) + ',' + (.5 * m.D * m.vx * k).toFixed(2) + ',' + (.5 * m.D * m.vy * k).toFixed(2) + ')';
+    if (bx !== H.lastBox) { H.lastBox = bx; H.box.style.transform = bx; }
+    if (m.front === H.back) { H.back = !m.front; H.box.classList.toggle('back', H.back); }
+    var seen = H.landed ? op : op * clamp((H.dy + 1.5) / .35, 0, 1);
+    if (seen > .998) seen = 1;
+    if (Math.abs(seen - H.op) > .004 || (seen === 1 && H.op !== 1)) { H.op = seen; H.box.style.opacity = seen.toFixed(3); }
+    if (reduce) return;
+    var wy = H.ryd === null ? 0 : (ryd - H.ryd) / s, wx = H.rxd === null ? 0 : (rxd - H.rxd) / s;
+    H.ryd = ryd; H.rxd = rxd;
+    H.v += (U.hopV - H.hop) * 140; H.hop = U.hopV;
+    var aim = clamp(-wy * .012 + wx * .005, -28, 28);
+    /* Caída al aparecer: cuando el sello ya se ve, el gorro cae, rebota un poco y se asienta */
+    if (!H.landed && op > .92) {
+      H.dv += 26 * s; H.dy += H.dv * s;
+      if (H.dy >= 0) {
+        H.dy = 0; H.v += 20 + H.dv * 12;
+        if (H.dv > 2.2) H.dv = -H.dv * .28; else { H.dv = 0; H.landed = true; }
+      }
+    }
+    var n = Math.max(1, Math.ceil(s / .008)), h = s / n;
+    for (var i = 0; i < n; i++) { H.v += (-110 * (H.a - aim) - 4.2 * H.v) * h; H.a += H.v * h; }
+    H.a = clamp(H.a, -40, 40);
+    H.busy = !H.landed || Math.abs(H.a) > .06 || Math.abs(H.v) > .6;
+    if (!H.busy) { H.a = 0; H.v = 0; }
+    if (Math.abs(H.a - H.lastA) > .05) { H.lastA = H.a; H.g.setAttribute('transform', 'rotate(' + H.a.toFixed(2) + ' 16.5 25.25)'); }
+    if (Math.abs(H.dy - H.lastDy) > .002 || (H.landed && H.lastDy !== 0)) { H.lastDy = H.dy; H.svg.style.transform = H.dy ? 'translate(0,' + (H.dy * 100).toFixed(1) + '%)' : ''; }
+  }
   /* Brillo: una franja de luz cruza el metal cada media vuelta; de cara, no se ve */
   function sheenOf(ryd, rxd) { var v = Math.abs(ryd) / 180 + Math.abs(rxd) / 300; return v - Math.floor(v); }
   /* Si dibujar el sello cuesta demasiado en este dispositivo, baja la calidad (solo hacia abajo) */
@@ -1921,6 +1976,7 @@ void main(){
       var ht = 'translate3d(0,' + (y * .1 - U.hop * (M.coinW || 300)).toFixed(1) + 'px,0)' + (U.hop > 0 ? ' scale(' + (1 + U.hop * .3).toFixed(4) + ')' : '');
       if (ht !== lastHeroT) { lastHeroT = ht; heroCanvas.style.transform = ht; }
       if (Math.abs(op - lastE) > .001) { lastE = op; heroCanvas.style.opacity = op.toFixed(3); }
+      if (heroHat) hatStep(ryd, rxd, ht, op, dt * .016667);
     }
 
     /* Cintas: avanzan solas y se aceleran con el scroll */
@@ -1960,7 +2016,7 @@ void main(){
     }
 
     var busy = introOn || vel !== 0 || (now() - lastAct < 400) || Math.abs(tx - px) > .002 || Math.abs(ty - py) > .002 ||
-      (V.hero && (drag || U.mode !== 'rest' || U.hop > 0 || hk < .995 || lastFast || (readyT !== null && !interactive))) ||
+      (V.hero && (drag || U.mode !== 'rest' || U.hop > 0 || hk < .995 || lastFast || (readyT !== null && !interactive) || (heroHat && heroHat.busy))) ||
       (awake && strips.some(function (s) { return s.vis; }));
     if (busy) requestAnimationFrame(frame); else running = false;
   }
