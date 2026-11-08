@@ -24,11 +24,12 @@
   y los efectos de fondo se pausan tras 12 s sin interacción. Con "movimiento reducido" la página es estática.
 - Intros (sección 6 del script), se elige con `intro` en `CHELIBO` ('sello' por defecto) o con `#intro-sello` / `#intro-moneda`
   al final del enlace para probarlas:
-  - 'sello': una mano con guante de parrillero estampa el logo en tinta granate sobre una tabla de asado, con la
-    parrilla y las brasas en primer plano; la cámara se pone de frente, las brasas hacen una llamarada, un frente de
-    fuego lo convierte en oro (la madera de alrededor queda chamuscada) y el sello dorado vuela a la portada, donde lo
-    sustituye el sello interactivo (`skipSpin`/`heroShown`, sin giro de entrada).
-    La tabla, la parrilla, el tampón y la mano se renderizan UNA vez en WebGL (trazado de rayos por campos de distancia,
+  - 'sello': una mano con guante estampa el logo en tinta granate sobre una tabla de madera; la cámara se pone de
+    frente, un frente de fuego con llamas y chispas lo convierte en oro (la madera de alrededor queda chamuscada) y el
+    sello dorado vuela a la portada, donde lo sustituye el sello interactivo (`skipSpin`/`heroShown`, sin giro de entrada).
+    La parrilla se quitó a petición del usuario. Su referencia para el estampado es un vídeo de YouTube
+    (https://youtu.be/_NUIKNBSyy0) que no se puede abrir desde la nube: pedirle una grabación o capturas.
+    La tabla, el tampón y la mano se renderizan UNA vez en WebGL (trazado de rayos por campos de distancia,
     `GLSL_F` y `studio()`), y después se animan en canvas 2D (desenfoque de profundidad y de movimiento, sombra, brazo).
     Sin WebGL por hardware, con `lite` o si la GPU tarda (>350 ms el fondo) se usa el tampón 2D de reserva (`makeStamp`).
     Para probar el 3D en el navegador de pruebas (SwiftShader) hay que forzarlo con `?gl=1`.

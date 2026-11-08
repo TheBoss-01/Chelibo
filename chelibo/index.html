@@ -90,12 +90,6 @@
   .intro .scene { position: absolute; inset: 0; transform-origin: var(--sx, 50%) var(--sy, 46%); }
   .intro .scene > canvas, .intro .scene > div { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
   .intro #introBg { transform-origin: var(--sx, 50%) var(--sy, 46%); }
-  .intro .scene > .grillglow { top: auto; bottom: 0; height: 28%; pointer-events: none; animation: grill 2.6s linear infinite;
-    background: radial-gradient(ellipse 85% 95% at 50% 118%, rgba(255,118,34,.40), rgba(255,70,12,.13) 52%, rgba(0,0,0,0) 76%); }
-  @keyframes grill { 0%, 100% { opacity: .82; } 13% { opacity: 1; } 27% { opacity: .74; } 41% { opacity: .95; } 55% { opacity: .8; } 70% { opacity: 1; } 85% { opacity: .78; } }
-  .intro .scene > .grillflare { top: auto; bottom: 0; height: 62%; opacity: 0; pointer-events: none;
-    background: radial-gradient(ellipse 70% 82% at 50% 112%, rgba(255,150,52,.55), rgba(255,92,22,.18) 46%, rgba(0,0,0,0) 72%); }
-  .intro:not(.has-bg) .grillglow, .intro:not(.has-bg) .grillflare { display: none; }
   .intro:not(.v-sello) .surface, .intro:not(.v-sello) .scene { display: none; }
   .intro.v-sello .glow { display: none; }
   .intro.v-sello .tag { animation: none; transform: translateY(14px); letter-spacing: .9em; transition: opacity .9s, transform .9s var(--ease), letter-spacing .9s var(--ease); }
@@ -397,8 +391,6 @@
   <div class="surface"></div>
   <div class="scene">
     <canvas id="introBg"></canvas>
-    <div class="grillglow"></div>
-    <div class="grillflare"></div>
     <div class="fireglow"></div>
     <canvas id="introFx"></canvas>
   </div>
@@ -567,7 +559,7 @@ var CHELIBO = {
   facebook: '',      // Ej.: 'https://www.facebook.com/chelibo'
   instagram: 'https://www.instagram.com/chelibo_',
   mensajeWhatsApp: 'Hola, Chelibo. Quería hacer una consulta.',
-  intro: 'sello',    // Animación de entrada: 'sello' (mano con tampón, parrilla y fuego) o 'moneda' (moneda dorada que gira)
+  intro: 'sello',    // Animación de entrada: 'sello' (mano con tampón y fuego) o 'moneda' (moneda dorada que gira)
   tema: 'navidad',   // Decoración de temporada: 'navidad' o 'normal' (sin decoración)
   fotos: ['', '', '', '', '', '']   // En orden; las tres primeras salen también en la carta. Ej.: 'fotos/plato-1.jpg'
 };
@@ -975,10 +967,10 @@ var CHELIBO = {
     }, function () { finish(); });
   }
 
-  /* Versión 'sello': una mano con guante de parrillero estampa el sello en una tabla de asado junto a la parrilla;
-     las brasas encienden el fuego, que convierte la tinta en oro, y el sello dorado vuela a la portada.
-     La tabla, la parrilla, la mano y el tampón se renderizan UNA vez en 3D (WebGL, trazado de rayos por campos de
-     distancia) y después solo se animan en canvas 2D. Sin WebGL de verdad (o en equipos lentos) se usa un tampón 2D. */
+  /* Versión 'sello': una mano con guante estampa el sello en una tabla de madera; el fuego y las chispas convierten
+     la tinta en oro, y el sello dorado vuela a la portada.
+     La tabla, la mano y el tampón se renderizan UNA vez en 3D (WebGL, trazado de rayos por campos de distancia) y
+     después solo se animan en canvas 2D. Sin WebGL de verdad (o en equipos lentos) se usa un tampón 2D. */
   var forceGL = /[?&]gl=1\b/.test(location.search);
   var GLSL_F = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -987,7 +979,7 @@ precision highp float;
 precision mediump float;
 #endif
 uniform vec2 uOut; uniform vec4 uRect; uniform vec2 uC; uniform float uF;
-uniform vec3 uRo, uFw, uRt, uUp; uniform float uMode, uEdge; uniform vec3 uLk;
+uniform vec3 uRo, uFw, uRt, uUp; uniform float uMode; uniform vec3 uLk;
 uniform vec3 uJ[16]; uniform float uFr[4]; uniform vec3 uTh[4];
 uniform vec3 uP0, uPu, uPn, uPw; uniform float uPl;
 uniform vec3 uW0, uW1, uW2; uniform vec3 uGc; uniform float uGr; uniform vec3 uBmin, uBmax;
@@ -1104,26 +1096,6 @@ vec3 board(vec3 p, vec3 rd){
   float sp = pow(max(dot(n, normalize(l - rd)), 0.), 26.) * .26;
   return alb * (KEY * dif * att + FILL * .35 + vec3(.03, .02, .015)) + KEY * sp * att;
 }
-vec4 grill(vec3 ro, vec3 rd){
-  float tb = 1e9; vec3 nb = vec3(0.);
-  for (int k = 0; k < 12; k++) {
-    float zc = uEdge + .16 + float(k) * .17, yc = -.3, r = .046;
-    vec2 oc = vec2(ro.y - yc, ro.z - zc); vec2 d = vec2(rd.y, rd.z);
-    float a = dot(d, d), b = dot(oc, d), c = dot(oc, oc) - r * r, disc = b * b - a * c;
-    if (disc > 0.) { float t = (-b - sqrt(disc)) / a; if (t > 0. && t < tb) { tb = t; vec3 hp = ro + rd * t; nb = normalize(vec3(0., hp.y - yc, hp.z - zc)); } }
-  }
-  float te = (-1.05 - ro.y) / rd.y;
-  vec3 ep = ro + rd * te;
-  float e = fbm(ep.xz * 2.4);
-  float cells = pow(clamp(fbm(ep.xz * 7. + 4.) * 1.5 - .55, 0., 1.), 1.7);
-  float ash = vnoise(ep.xz * 22.);
-  vec3 emb = mix(vec3(.018, .008, .004) * (.6 + ash), vec3(2.3, .78, .17), cells) * (.3 + 1.3 * e * e) + vec3(.03, .006, 0.);
-  if (tb < te) {
-    float under = max(-nb.y, 0.);
-    return vec4(tb, vec3(.01, .009, .0085) + vec3(1., .42, .12) * under * under * 1.6 + vec3(.06, .05, .05) * max(nb.y, 0.));
-  }
-  return vec4(1e9, emb);
-}
 void main(){
   vec2 frag = vec2(gl_FragCoord.x, uOut.y - gl_FragCoord.y);
   vec2 px = uRect.xy + frag * uRect.zw / uOut;
@@ -1131,16 +1103,7 @@ void main(){
   vec3 ro = uRo;
   if (uMode < .5) {
     vec3 col = vec3(0.);
-    if (rd.y < 0.) {
-      float t = -ro.y / rd.y; vec3 p = ro + rd * t;
-      if (p.z < uEdge) col = board(p, rd);
-      else {
-        vec4 gh = grill(ro, rd);
-        float tf = (uEdge - ro.z) / rd.z; vec3 fp = ro + rd * tf;
-        if (tf > 0. && fp.y > -.22 && fp.y <= 0. && tf < gh.x) col = vec3(.05, .026, .015) + vec3(.9, .4, .12) * .35 * (1. + fp.y * 3.);
-        else col = gh.yzw;
-      }
-    }
+    if (rd.y < 0.) { float t = -ro.y / rd.y; col = board(ro + rd * t, rd); }
     float vig = smoothstep(1.3, .2, length((px - uC) / uRect.w));
     col *= mix(.25, 1., vig);
     gl_FragColor = vec4(pow(aces(col * .85), vec3(1. / 2.2)), 1.);
@@ -1165,7 +1128,7 @@ void main(){
 
   function introSello() {
     var fx = $('#introFx'), bgc = $('#introBg'), scene = $('.scene', intro), stage = $('.stage', intro), coinCv = $('#introCoin');
-    var glowEl = $('.fireglow', intro), flareEl = $('.grillflare', intro);
+    var glowEl = $('.fireglow', intro);
     var g = fx && fx.getContext ? fx.getContext('2d') : null;
     if (!g || !stage || !coinCv || !scene) { finish(); return; }
     var dpr = Math.min(window.devicePixelRatio || 1, lite ? 1.25 : 2);
@@ -1178,11 +1141,11 @@ void main(){
     intro.style.setProperty('--sy', (sr.top + sr.height / 2).toFixed(1) + 'px');
     var PHI = 57 * DEG, SIN = Math.sin(PHI), COS = Math.cos(PHI);   /* la cámara mira la tabla desde arriba e inclinada */
     var RD = SP * .53, PRE = 1, K = SP / 660;
-    var rnd = mulberry(7), A = {}, P = [], t0 = 0, lastTk = 0, spawnAcc = 0, emberAcc = 0, sparkAcc = 0;
-    var glowLast = -1, flareLast = -1, sealState = '', tagShown = false, lastB = null, lastTy = -1, lastCam = '';
+    var rnd = mulberry(7), A = {}, P = [], t0 = 0, lastTk = 0, spawnAcc = 0, emberAcc = 0;
+    var glowLast = -1, sealState = '', tagShown = false, lastB = null, lastTy = -1, lastCam = '';
     /* Guion (ms): la mano entra, apunta, estampa con peso y balanceo, despega el tampón y se va; la cámara se pone
-       de frente; llamarada de la parrilla; el fuego recorre el sello; enfriado y brillo; vuelo a la portada */
-    var TL = { enter0: 250, hover: 950, hit: 1100, peel: 1480, lift0: 1600, lift1: 1950, tilt1: 2300, flare: 2200, fire0: 2420, fire1: 3720, sheen0: 3820, sheen1: 4320, tag: 3780, fly: 4380 };
+       de frente; el fuego recorre el sello; enfriado y brillo; vuelo a la portada */
+    var TL = { enter0: 250, hover: 950, hit: 1100, peel: 1480, lift0: 1600, lift1: 1950, tilt1: 2300, fire0: 2400, fire1: 3700, sheen0: 3800, sheen1: 4300, tag: 3760, fly: 4360 };
 
     function mk(w, h) { var c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h || w)); return c; }
     function tint(src, col) { var c = mk(SP), x = c.getContext('2d'); x.drawImage(src, 0, 0, SP, SP); x.globalCompositeOperation = 'source-in'; x.fillStyle = col; x.fillRect(0, 0, SP, SP); return c; }
@@ -1199,7 +1162,7 @@ void main(){
       return s2;
     }
 
-    /* ---- Estudio 3D: tabla, parrilla, tampón y mano, renderizados una vez ---- */
+    /* ---- Estudio 3D: tabla, tampón y mano, renderizados una vez ---- */
     function studio() {
       var cv = document.createElement('canvas'), gl = null;
       try { gl = cv.getContext('webgl', { alpha: true, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, preserveDrawingBuffer: true }); } catch (er) { gl = null; }
@@ -1222,8 +1185,6 @@ void main(){
       var dist = 9, f = RD * dist;
       var ro = [0, dist * SIN, dist * COS], fw = [0, -SIN, -COS], rt = [1, 0, 0], up = [0, COS, -SIN];
       function proj(p) { var d = [p[0] - ro[0], p[1] - ro[1], p[2] - ro[2]]; var z = d[0] * fw[0] + d[1] * fw[1] + d[2] * fw[2]; return [CX + f * (d[0] * rt[0] + d[1] * rt[1] + d[2] * rt[2]) / z, CY - f * (d[0] * up[0] + d[1] * up[1] + d[2] * up[2]) / z]; }
-      var ey = FH * .86 - CY, rdE = [fw[0] * f - up[0] * ey, fw[1] * f - up[1] * ey, fw[2] * f - up[2] * ey];
-      var zEdge = ro[2] + (-ro[1] / rdE[1]) * rdE[2];
       /* Mano con guante: dedos que abrazan el pomo siguiendo su superficie, pulgar por un lado, palma encima */
       var KC = [0, 1.56, 0], KR = .42;
       function onK(el, az, r) { var e = el * DEG, a = az * DEG, R = KR + r; return [KC[0] + R * Math.cos(e) * Math.sin(a), KC[1] + R * Math.sin(e) * 1.04, KC[2] + R * Math.cos(e) * Math.cos(a)]; }
@@ -1248,7 +1209,7 @@ void main(){
       var Tf = []; TH.forEach(function (q) { Tf.push(q[0], q[1], q[2]); });
       gl.uniform2f(U('uC'), CX, CY); gl.uniform1f(U('uF'), f);
       gl.uniform3fv(U('uRo'), ro); gl.uniform3fv(U('uFw'), fw); gl.uniform3fv(U('uRt'), rt); gl.uniform3fv(U('uUp'), up);
-      gl.uniform1f(U('uEdge'), zEdge); gl.uniform3fv(U('uLk'), [-1.2, 1.5, zEdge + 1.6]);
+      gl.uniform3fv(U('uLk'), [-2.1, 1.9, 4.3]);   /* luz cálida desde delante a la izquierda */
       gl.uniform3fv(U('uJ'), new Float32Array(Jf)); gl.uniform1fv(U('uFr'), new Float32Array(FR)); gl.uniform3fv(U('uTh'), new Float32Array(Tf));
       gl.uniform3fv(U('uP0'), P0); gl.uniform3fv(U('uPu'), pu); gl.uniform3fv(U('uPn'), pn); gl.uniform3fv(U('uPw'), pw); gl.uniform1f(U('uPl'), plen);
       gl.uniform3fv(U('uW0'), W0); gl.uniform3fv(U('uW1'), W1); gl.uniform3fv(U('uW2'), W2);
@@ -1262,7 +1223,7 @@ void main(){
         return out;
       }
       var res = {};
-      /* 1) Fondo: tabla de asado, canto y parrilla con brasas */
+      /* 1) Fondo: la tabla de madera */
       var bs = Math.min(1, Math.sqrt(720000 / (FW * FH)));
       var tA = now();
       res.bg = render(0, Math.round(FW * bs), Math.round(FH * bs), [0, 0, FW, FH]);
@@ -1363,7 +1324,7 @@ void main(){
       x.fillStyle = grd; x.beginPath(); x.arc(0, 0, rr, 0, 6.2832); x.fill(); x.restore();
       return c;
     }
-    /* Sombra suave del tampón, la mano y el brazo: la luz de las brasas viene de delante, la sombra va hacia el fondo */
+    /* Sombra suave del tampón, la mano y el brazo: la luz viene de delante, la sombra va hacia el fondo */
     function makeShadow() {
       var w = Math.ceil(RD * 4.4), h = Math.ceil(RD * 3.4), c = mk(w, h), x = c.getContext('2d');
       var ox = RD * 1.3, oy = h - RD * 1.15;
@@ -1486,17 +1447,6 @@ void main(){
       }
       while (spawnAcc >= 1) { spawnAcc--; one(0); }
       while (emberAcc >= 1) { emberAcc--; one(1); }
-    }
-    /* Chispas de la parrilla: siempre unas pocas; en la llamarada, muchas y subiendo hacia el sello */
-    function sparks(e, dts) {
-      var flare = e > TL.flare && e < TL.fire0 + 380;
-      sparkAcc += (flare ? (lite ? 40 : 95) : (lite ? 3 : 7)) * dts;
-      while (sparkAcc >= 1) {
-        sparkAcc--; if (P.length > (lite ? 200 : 380)) break;
-        var x0 = flare ? CX + (rnd() - .5) * SP * .9 : rnd() * FW, y0 = FH * (.93 + rnd() * .07);
-        var vy = flare ? -(y0 - (CY + SP * .42)) / (.5 + rnd() * .35) : -(150 + rnd() * 230) * K;
-        P.push({ k: 2, x: x0, y: y0, vx: (rnd() - .5) * 60 * K, vy: vy, life: flare ? .65 + rnd() * .4 : 1.5 + rnd() * 1.2, age: 0, s: .4 + rnd() * .6, ph: rnd() * 6.283 });
-      }
     }
     function particles(dts) {
       if (!P.length) return;
@@ -1623,12 +1573,9 @@ void main(){
       }
       if (st) { drawShadow(st); drawStamp(st); } else lastB = null;
       if (T > -.02 && T < 1.03) spawn(T, dts);
-      sparks(e, dts);
       particles(dts);
       var act = T > -.05 && T < 1.3 ? Math.min(1, (T + .05) / .12) * Math.min(1, (1.3 - T) / .3) : 0;
       if (Math.abs(act - glowLast) > .02) { glowLast = act; glowEl.style.opacity = act.toFixed(2); }
-      var fl = e > TL.flare ? Math.max(0, Math.min(1, (e - TL.flare) / 160) * (1 - Math.max(0, e - TL.fire0 - 250) / 900)) : 0;
-      if (Math.abs(fl - flareLast) > .02) { flareLast = fl; flareEl.style.opacity = fl.toFixed(2); }
       if (!tagShown && e > TL.tag) { tagShown = true; intro.classList.add('show-tag'); }
       if (e > TL.fly) { flyToHero(); return; }
       requestAnimationFrame(tick);
