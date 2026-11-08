@@ -128,6 +128,14 @@
     50% { transform: perspective(1200px) rotateY(7deg) rotateX(-3deg) translate3d(0, -8px, 0); }
   }
   .sleep .floaty { animation-play-state: paused; }
+  /* Sello interactivo: se arrastra con inercia, se lanza con un toque y se asienta de cara */
+  .sello-wrap.interactive { cursor: grab; touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  .sello-wrap.grabbing { cursor: grabbing; }
+  .sello-wrap.held .floaty { animation-play-state: paused; }
+  .sello-wrap:focus-visible { outline: 2px solid var(--gold); outline-offset: 10px; border-radius: 50%; }
+  .sello-wrap .hint { position: absolute; left: 50%; bottom: -22px; padding-left: .22em; font-size: 11px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--mute); white-space: nowrap; pointer-events: none; opacity: 0; transform: translate3d(-50%, 6px, 0); transition: opacity .6s, transform .6s var(--ease); }
+  .sello-wrap .hint.on { opacity: 1; transform: translate3d(-50%, 0, 0); }
   .sello-wrap.has-canvas > svg { visibility: hidden; }
   .cue { display: flex; align-items: center; gap: 12px; margin-top: 44px; font-size: 11px; letter-spacing: .26em; text-transform: uppercase; color: var(--mute); }
   .cue i { display: block; width: 1px; height: 44px; background: linear-gradient(var(--gold), transparent); transform-origin: 50% 0; animation: cue 2.2s ease-in-out infinite; }
@@ -244,7 +252,7 @@
   /* ---------- Formatos ---------- */
   @media (max-width: 860px) {
     .hero { grid-template-columns: 1fr; }
-    .sello-wrap { order: -1; width: min(72%, 340px, 46vh); justify-self: start; }
+    .sello-wrap { order: -1; width: min(72%, 340px, 46vh); justify-self: start; margin-bottom: 22px; }
     .menu { grid-template-columns: 1fr; }
     .contact .wrap { grid-template-columns: minmax(0, 1fr); align-items: start; }
     .cue { display: none; }
@@ -347,6 +355,7 @@
       <div class="sello-wrap" id="heroWrap">
         <svg class="logo s gold" viewBox="0 0 1000 1000" role="img" aria-label="Sello Chelibo"><use href="#sello"/></svg>
         <div class="floaty"><canvas id="heroCoin" aria-hidden="true"></canvas></div>
+        <span class="hint" id="coinHint" aria-hidden="true"></span>
       </div>
     </section>
   </main>
@@ -611,7 +620,7 @@ var CHELIBO = {
     var self = { ok: false, load: function () {}, raster: function () {}, draw: function () {} };
     var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
     if (!ctx) return self;
-    var imgs = null, W = 0, base = null, face = null, fctx = null, tints = [];
+    var imgs = null, W = 0, base = null, tints = [];
     function mk(w) { var c = document.createElement('canvas'); c.width = c.height = Math.max(1, w); return c; }
     self.raster = function () {
       if (!imgs) return;
@@ -622,7 +631,6 @@ var CHELIBO = {
       if (self.ok && canvas.width === cw && canvas.height === ch && Math.abs(w - W) < 2) return;
       canvas.width = cw; canvas.height = ch; W = w;
       base = mk(W); base.getContext('2d').drawImage(imgs[0], 0, 0, W, W);
-      face = mk(W); fctx = face.getContext('2d');
       var tw = Math.max(16, Math.round(W * o.tintScale));
       tints = o.tints.map(function (col) {
         var c = mk(tw), x = c.getContext('2d');
@@ -634,13 +642,15 @@ var CHELIBO = {
       self.ok = true;
     };
     self.load = function (im) { imgs = im; self.raster(); };
+    self.setQuality = function (dpr, layers) { o.dpr = dpr; o.layers = layers; W = 0; self.raster(); };
     var R0 = 0.4527; /* radio exterior del aro del sello */
     /* Proyección ortográfica: cada capa es la misma imagen con una matriz afín (giro en Y y en X). */
-    self.draw = function (ry, rx, s, sheen) {
+    self.draw = function (ry, rx, s, sheen, fast) {
       if (!self.ok) return;
       var cw = canvas.width, ch = canvas.height, X = cw / 2, Y = ch / 2, h = W / 2;
       var cy = Math.cos(ry), sy = Math.sin(ry), cx = Math.cos(rx), sx = Math.sin(rx);
       if (Math.abs(cy) < 1e-3) cy = cy < 0 ? -1e-3 : 1e-3;
+      if (Math.abs(cx) < 1e-3) cx = cx < 0 ? -1e-3 : 1e-3;
       var a = cy * s, b = sy * sx * s, d = cx * s, vx = sy * s, vy = -cy * sx * s;
       var sign = cy * cx >= 0 ? 1 : -1, D = o.depth * W, n = o.layers, R = R0 * W;
       var T = function (z) { ctx.setTransform(a, b, 0, d, X + z * vx, Y + z * vy); };
@@ -648,7 +658,7 @@ var CHELIBO = {
       I(); ctx.clearRect(0, 0, cw, ch);
       /* Capas de grosor: solo las necesarias para que no se vean huecos con este ángulo */
       var off = Math.abs(D * vx) + Math.abs(D * vy);
-      var nl = Math.max(1, Math.min(n - 1, Math.ceil(off / 2.5)));
+      var nl = Math.max(1, Math.min(n - 1, Math.ceil(off / (fast ? 5 : 2.5))));
       if (off > .5) for (var k = 0; k < nl; k++) {
         T((k / nl - .5) * D * sign);
         ctx.drawImage(tints[Math.min(tints.length - 1, (k * tints.length / nl) | 0)], -h, -h, W, W);
@@ -668,32 +678,32 @@ var CHELIBO = {
         ctx.beginPath(); T(zN); ctx.moveTo(px, py); ctx.lineTo(-px, -py); T(zF); ctx.lineTo(-px, -py); ctx.lineTo(px, py); ctx.closePath(); I(); ctx.fill();
         ctx.restore();
       }
-      var img = base;
+      T(zN); ctx.drawImage(base, -h, -h, W, W);
       if (sheen != null) {
-        var q = (sheen * 1.8 - .4) * W;
-        if (q > -.3 * W && q < 1.3 * W) {
-          fctx.globalCompositeOperation = 'source-over';
-          fctx.clearRect(0, 0, W, W);
-          fctx.drawImage(base, 0, 0);
-          fctx.globalCompositeOperation = 'source-atop';
-          var gg = fctx.createLinearGradient(q - .22 * W, q - .22 * W, q + .22 * W, q + .22 * W);
-          gg.addColorStop(0, 'rgba(255,247,220,0)'); gg.addColorStop(.5, 'rgba(255,247,220,.75)'); gg.addColorStop(1, 'rgba(255,247,220,0)');
-          fctx.fillStyle = gg; fctx.fillRect(0, 0, W, W);
-          img = face;
+        var q = sheen * 1.8 - .4;
+        if (q > -.3 && q < 1.3) {
+          I();
+          var L = Math.max(cw, ch), q0 = (q - .22) * L, q1 = (q + .22) * L;
+          var gg = ctx.createLinearGradient(q0, q0, q1, q1);
+          gg.addColorStop(0, 'rgba(255,247,220,0)'); gg.addColorStop(.5, 'rgba(255,247,220,.62)'); gg.addColorStop(1, 'rgba(255,247,220,0)');
+          ctx.globalCompositeOperation = 'source-atop';
+          ctx.fillStyle = gg; ctx.fillRect(0, 0, cw, ch);
+          ctx.globalCompositeOperation = 'source-over';
         }
       }
-      T(zN); ctx.drawImage(img, -h, -h, W, W);
       I();
     };
     return self;
   }
   var TINTS = ['#3e2a08', '#5f4210', '#86601c', '#a87d2c'];
+  /* Niveles de calidad del sello de la portada [densidad de píxeles, capas]. Se baja solo si va lento. */
+  var QL = lite ? [[1.25, 12], [1, 8]] : [[2, 18], [1.5, 12], [1.15, 8]];
 
   /* ---------- 6. Intro ---------- */
   var readyT = null, introOn = false;
   function ready() { if (readyT !== null) return; readyT = now(); root.classList.add('ready'); kick(); }
   var heroWrap = $('#heroWrap'), heroCanvas = $('#heroCoin');
-  var hero = Coin(heroCanvas, { layers: lite ? 7 : 10, depth: .08, pad: 1.06, dpr: lite ? 1.25 : 2, tintScale: .45, tints: TINTS });
+  var hero = Coin(heroCanvas, { layers: QL[0][1], depth: .08, pad: 1.06, dpr: QL[0][0], tintScale: .45, tints: TINTS });
   if (!intro) ready();
   else {
     introOn = true;
@@ -749,6 +759,7 @@ var CHELIBO = {
     M.pars = pars.map(function (el) { var f = el.parentNode; return { el: el, top: docTop(f), h: f.offsetHeight }; });
     strips.forEach(function (s) { s.half = (s.el.scrollWidth / 2) || 1; });
     M.docH = Math.max(1, document.documentElement.scrollHeight - M.vh);
+    M.coinW = heroWrap ? heroWrap.offsetWidth : 300;
     hero.raster();
     if (hero.ok && heroWrap) heroWrap.classList.add('has-canvas');
     kick();
@@ -766,10 +777,138 @@ var CHELIBO = {
 
   /* ---------- 8. Bucle de animación: se detiene solo cuando no hay nada que mover ---------- */
   var curY = function () { return Math.max(0, window.scrollY || window.pageYOffset || 0); };
-  var y0 = curY(), vel = 0, tx = 0, ty = 0, px = 0, py = 0, lastDraw = [9, 9, 9], lastHeroY = -1, asleep = false;
+  var y0 = curY(), vel = 0, tx = 0, ty = 0, px = 0, py = 0, lastDraw = [9, 9, 9], lastFast = false, asleep = false;
   var SLEEP = 12000;
   var headHidden = false, headSolid = null, anchor = y0, fabAway = null;
   function kick() { lastAct = now(); if (!running) { running = true; lastT = 0; requestAnimationFrame(frame); } }
+
+  /* ---------- 9. Sello interactivo: arrastrar con inercia, lanzar con un toque, asentarse de cara ---------- */
+  var U = { y: 0, x: 0, vy: 0, vx: 0, ty: 0, tx: 0, gy: 0, gx: 0, mode: 'rest', toss: false, hop: 0, hopV: 0 };
+  var drag = null, interactive = false, hk = 1, hint = $('#coinHint'), lastHeroT = '';
+  var Q = { ema: 0, n: 0, slow: 0, lvl: 0, from: 0 };
+  var HOP_V = .89, HOP_G = 2.47;   /* salto de un 16 % del tamaño del sello, unos 0,7 s en el aire */
+  function hold() { heroWrap.classList.add('held'); if (hint) hint.classList.remove('on'); kick(); }
+  function enableCoin() {
+    interactive = true; Q.from = now() + 300;
+    heroWrap.classList.add('interactive');
+    heroWrap.setAttribute('tabindex', '0');
+    heroWrap.setAttribute('role', 'button');
+    heroWrap.setAttribute('aria-label', 'Sello de Chelibo: arrástralo para girarlo o púlsalo para lanzarlo');
+    if (hint) { hint.textContent = fine ? 'Arrastra o haz clic' : 'Toca o arrastra'; hint.classList.add('on'); }
+  }
+  /* Lanzamiento: una vuelta completa sobre el eje horizontal y un salto, como una moneda */
+  function toss() {
+    U.toss = true; U.mode = 'settle';
+    U.tx = Math.round(U.x / 360) * 360 + 360;
+    U.ty = Math.round(U.y / 360) * 360;
+    U.vx = Math.max(U.vx, 420);
+    U.hopV = Math.max(U.hopV, HOP_V);
+    hold();
+  }
+  function stepCoin(s) {
+    if (U.mode === 'drag') {
+      /* Sigue al dedo con un suavizado de ~30 ms: continuo aunque los eventos lleguen a ritmo irregular */
+      var g = 1 - Math.exp(-s / .03);
+      U.y += (U.gy - U.y) * g; U.x += (U.gx - U.x) * g;
+    } else if (U.mode === 'coast') {
+      var f = Math.exp(-2.4 * s);
+      U.vy *= f; U.vx *= f;
+      U.y += U.vy * s; U.x += U.vx * s;
+      if (Math.abs(U.vy) < 260 && Math.abs(U.vx) < 260) {
+        /* Ya va despacio: se asienta en la cara más cercana en el sentido en que giraba */
+        U.mode = 'settle'; U.toss = false;
+        U.ty = Math.round((U.y + U.vy * .2) / 360) * 360;
+        U.tx = Math.round((U.x + U.vx * .2) / 360) * 360;
+      }
+    } else if (U.mode === 'settle') {
+      var k = U.toss ? 30 : 70, c = 2 * Math.sqrt(k) * (U.toss ? .7 : .8);
+      var n = Math.max(1, Math.ceil(s * 240)), h = s / n;
+      for (var i = 0; i < n; i++) {
+        U.vy += (-k * (U.y - U.ty) - c * U.vy) * h; U.y += U.vy * h;
+        U.vx += (-k * (U.x - U.tx) - c * U.vx) * h; U.x += U.vx * h;
+      }
+      if (Math.abs(U.y - U.ty) < .03 && Math.abs(U.x - U.tx) < .03 && Math.abs(U.vy) < .6 && Math.abs(U.vx) < .6) {
+        U.y = U.x = U.ty = U.tx = U.vy = U.vx = 0; U.mode = 'rest'; U.toss = false;
+      }
+    }
+    if (U.hop > 0 || U.hopV !== 0) {
+      U.hopV -= HOP_G * s; U.hop += U.hopV * s;
+      if (U.hop <= 0) { U.hop = 0; U.hopV = U.hopV < -.3 ? -U.hopV * .3 : 0; }
+    }
+    if (U.mode === 'rest' && !drag && U.hop === 0) heroWrap.classList.remove('held');
+  }
+  /* Brillo: una franja de luz cruza el metal cada media vuelta; de cara, no se ve */
+  function sheenOf(ryd, rxd) { var v = Math.abs(ryd) / 180 + Math.abs(rxd) / 300; return v - Math.floor(v); }
+  /* Si dibujar el sello cuesta demasiado en este dispositivo, baja la calidad (solo hacia abajo) */
+  function govern(ms, frameMs) {
+    if (now() < Q.from) return;
+    Q.ema = Q.n ? Q.ema * .85 + ms * .15 : ms;
+    Q.n++;
+    if (frameMs > 22) Q.slow++;
+    if (Q.n >= 30) {
+      /* Más del 15 % de fotogramas lentos (o dibujo caro) en los últimos 30: un nivel menos */
+      if ((Q.slow / Q.n > .15 || Q.ema > 6) && Q.lvl < QL.length - 1) {
+        Q.lvl++;
+        hero.setQuality(QL[Q.lvl][0], QL[Q.lvl][1]);
+        lastDraw = [9, 9, 9];
+      }
+      Q.n = 0; Q.slow = 0;
+    }
+  }
+  if (heroWrap) {
+    heroWrap.addEventListener('pointerdown', function (e) {
+      if (!interactive || drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      if (e.pointerType === 'mouse') e.preventDefault();
+      try { heroWrap.setPointerCapture(e.pointerId); } catch (er) {}
+      var t0 = now();
+      drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, t0: t0, moved: false, touch: e.pointerType !== 'mouse', s: [[t0, U.y, U.x]] };
+      U.gy = U.y; U.gx = U.x;
+      U.mode = 'drag';   /* atraparlo lo detiene */
+      hold();
+    });
+    heroWrap.addEventListener('pointermove', function (e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var dx = e.clientX - drag.lx, dy = e.clientY - drag.ly;
+      drag.lx = e.clientX; drag.ly = e.clientY;
+      if (!drag.moved) {
+        if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) < 6) return;
+        drag.moved = true; heroWrap.classList.add('grabbing');
+      }
+      var k = 200 / Math.max(140, M.coinW || 300);   /* cruzar el sello con el dedo = unos 200° */
+      U.gy += dx * k;
+      U.gx -= dy * k * (drag.touch ? .4 : 1);
+      var tt = now(), sm = drag.s;
+      sm.push([tt, U.gy, U.gx]);
+      while (sm.length > 2 && tt - sm[0][0] > 90) sm.shift();
+      kick();
+    });
+    var release = function (e, cancel) {
+      if (!drag || (e && e.pointerId !== drag.id)) return;
+      var d = drag; drag = null;
+      heroWrap.classList.remove('grabbing');
+      try { heroWrap.releasePointerCapture(d.id); } catch (er) {}
+      var tn = now();
+      if (!d.moved && !cancel && tn - d.t0 < 450) { toss(); return; }
+      var sm = d.s, a = sm[0], b = sm[sm.length - 1], ds = (b[0] - a[0]) / 1000;
+      if (!cancel && d.moved && ds > .012 && tn - b[0] < 90) {
+        U.vy = clamp((b[1] - a[1]) / ds, -2600, 2600);
+        U.vx = clamp((b[2] - a[2]) / ds, -2600, 2600);
+      } else { U.vy = 0; U.vx = 0; }
+      U.mode = 'coast';
+      kick();
+    };
+    heroWrap.addEventListener('pointerup', function (e) { release(e, false); });
+    heroWrap.addEventListener('pointercancel', function (e) { release(e, true); });
+    heroWrap.addEventListener('lostpointercapture', function (e) { release(e, true); });
+    heroWrap.addEventListener('keydown', function (e) {
+      if (!interactive) return;
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); toss(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        U.mode = 'coast'; U.toss = false; U.vy += e.key === 'ArrowLeft' ? -900 : 900; hold();
+      }
+    });
+  }
   function frame(t) {
     var dt = lastT ? clamp((t - lastT) / 16.667, .25, 3) : 1;
     lastT = t; frameN++;
@@ -801,15 +940,25 @@ var CHELIBO = {
 
     /* Sello de la portada: el flotado es CSS; el lienzo solo se redibuja si cambia el giro */
     if (hero.ok && V.hero) {
+      stepCoin(dt * .016667);
       var e = readyT === null ? 0 : ease3(clamp((t - readyT) / 1600, 0, 1));
+      if (!interactive && e >= 1) enableCoin();
+      hk += ((drag || U.mode !== 'rest' ? 0 : 1) - hk) * (1 - Math.pow(.88, dt));
       var sc = Math.min(y, vh * 1.5);
-      var ry = (px * 22 + sc * .2 - (1 - e) * 220) * DEG;
-      var rx = (-py * 14 - sc * .02) * DEG;
+      var ryd = U.y + px * 22 * hk + sc * .2 - (1 - e) * 220, rxd = U.x - py * 14 * hk - sc * .02;
+      var ry = ryd * DEG, rx = rxd * DEG;
       var hs = .55 + .45 * e - sc * .0001;
-      if (Math.abs(ry - lastDraw[0]) + Math.abs(rx - lastDraw[1]) + Math.abs(hs - lastDraw[2]) > 2e-4 && (!lite || (frameN & 1) === 0)) {
-        hero.draw(ry, rx, hs, null); lastDraw = [ry, rx, hs];
+      var dAng = Math.abs(ry - lastDraw[0]) + Math.abs(rx - lastDraw[1]);
+      var fast = dAng > 2 * DEG * dt;
+      if (dAng + Math.abs(hs - lastDraw[2]) > 2e-4 || (lastFast && !fast)) {
+        var t1 = now();
+        hero.draw(ry, rx, hs, lite ? null : sheenOf(ryd, rxd), fast);
+        if (interactive) govern(now() - t1, dt * 16.667);
+        lastDraw = [ry, rx, hs]; lastFast = fast;
       }
-      if (y !== lastHeroY) { lastHeroY = y; heroCanvas.style.transform = 'translate3d(0,' + (y * .1).toFixed(1) + 'px,0)'; }
+      /* El salto del lanzamiento va por CSS (GPU): subir y acercarse un poco */
+      var ht = 'translate3d(0,' + (y * .1 - U.hop * (M.coinW || 300)).toFixed(1) + 'px,0)' + (U.hop > 0 ? ' scale(' + (1 + U.hop * .3).toFixed(4) + ')' : '');
+      if (ht !== lastHeroT) { lastHeroT = ht; heroCanvas.style.transform = ht; }
       if (Math.abs(e - lastE) > .001) { lastE = e; heroCanvas.style.opacity = e.toFixed(3); }
     }
 
@@ -850,6 +999,7 @@ var CHELIBO = {
     }
 
     var busy = introOn || vel !== 0 || (now() - lastAct < 400) || Math.abs(tx - px) > .002 || Math.abs(ty - py) > .002 ||
+      (V.hero && (drag || U.mode !== 'rest' || U.hop > 0 || hk < .995 || lastFast || (readyT !== null && !interactive))) ||
       (awake && strips.some(function (s) { return s.vis; }));
     if (busy) requestAnimationFrame(frame); else running = false;
   }
