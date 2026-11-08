@@ -1,6 +1,11 @@
 # Notas del repositorio
 
-Repositorio de la web del foodtruck Chelibo. Instagram: https://www.instagram.com/chelibo_
+## Proyectos
+- `chelibo/`: web del foodtruck Chelibo. Instagram: https://www.instagram.com/chelibo_
+- Demo de efecto liquid glass hecha con CSS y filtros SVG, sin librerías. Estaba en `index.html` (raíz);
+  se quitó del repositorio a petición del usuario. Sigue publicada en https://claude.ai/artifact/U8yybTZ72LtNHv6WZLiuXz
+  y su código está en el historial de git (commit e512da7).
+- La librería "websiteglass" no existe en npm y websiteglass.com no es accesible desde las sesiones en la nube.
 
 ## Chelibo
 - Plantilla: `chelibo/src/pagina.html`. No edites `chelibo/index.html` a mano: se genera.
