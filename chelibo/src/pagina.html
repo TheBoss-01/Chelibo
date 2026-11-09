@@ -1706,7 +1706,15 @@ void main(){
     function flyToHero() {
       var cw = Math.round(coinCv.offsetWidth * dpr), ch = Math.round(coinCv.offsetHeight * dpr);
       coinCv.width = cw; coinCv.height = ch;
-      coinCv.getContext('2d').drawImage(A.gold, (cw - SP) / 2, (ch - SP) / 2, SP, SP);
+      /* El sello que vuela es una copia exacta del sello interactivo (mismo dibujo, relieve y brillo): sin salto al cambiar */
+      var cx2 = coinCv.getContext('2d');
+      if (hero.ok) {   /* pose en la que el sello interactivo empieza tras el vuelo */
+        var sy0 = Math.min(curY(), (M.vh || innerHeight) * 1.5);
+        hero.draw(sy0 * .2 * DEG, -sy0 * .02 * DEG, 1 - sy0 * .0001, lite ? null : sheenOf(sy0 * .2, -sy0 * .02), false);
+      }
+      var hw = heroCanvas.width, wh = hw / 1.06;
+      if (hero.ok && hero.m && hw > 1) { var k2 = SP / wh; cx2.drawImage(heroCanvas, (cw - hw * k2) / 2, (ch - heroCanvas.height * k2) / 2, hw * k2, heroCanvas.height * k2); }
+      else cx2.drawImage(A.gold, (cw - SP) / 2, (ch - SP) / 2, SP, SP);
       fx.style.visibility = 'hidden'; glowEl.style.opacity = '0';
       scene.style.transform = 'none';
       intro.classList.add('reveal');
