@@ -215,6 +215,28 @@
   .days .l { font-weight: 500; min-width: 0; }
   .days .h { color: var(--mute); text-align: right; font-size: 15px; min-width: 0; }
   .days li.today .d { color: var(--gold); }
+  /* Tarjeta de Google Maps: mapa dibujado (negro y oro) con el pin del sello; con dirección, encima el mapa real */
+  .mapa { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); margin-top: clamp(28px, 5vw, 48px); border: 1px solid var(--line);
+    border-radius: 22px; overflow: hidden; background: #0f0d0a; }
+  .m-art { position: relative; min-height: 260px; overflow: hidden; isolation: isolate; }
+  .m-art .m-streets { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .m-art::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(10,9,7,0) 40%, rgba(10,9,7,.75)); }
+  .m-art iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; opacity: 0; transition: opacity .6s;
+    filter: invert(.92) hue-rotate(180deg) saturate(.55) brightness(.9) sepia(.25); }
+  .mapa.has-map iframe { opacity: 1; }
+  .mapa.has-map .m-pin, .mapa.has-map .m-art::after { display: none; }
+  .m-pin { position: absolute; left: 50%; top: 50%; width: 52px; height: 68px; margin: -64px 0 0 -26px; z-index: 1; filter: drop-shadow(0 10px 14px rgba(0,0,0,.55)); }
+  .m-pin svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .m-pin .m-logo { fill: var(--gold); stroke: var(--gold); }
+  .m-pin i { position: absolute; left: 50%; bottom: -6px; width: 46px; height: 18px; margin-left: -23px; border-radius: 50%; border: 2px solid rgba(217,178,90,.7);
+    animation: pinpulse 2.4s ease-out infinite; }
+  @keyframes pinpulse { from { transform: scale(.35); opacity: .9; } to { transform: scale(1.6); opacity: 0; } }
+  .mapa:not(.live) .m-pin i, .sleep .m-pin i { animation-play-state: paused; }
+  .m-info { display: grid; align-content: center; gap: 8px; padding: clamp(24px, 4vw, 40px); }
+  .m-info .lbl { font-size: 12px; font-weight: 600; letter-spacing: .24em; text-transform: uppercase; color: var(--gold); }
+  .m-info .m-name { font-family: var(--display); font-weight: 400; font-size: clamp(34px, 5vw, 52px); line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
+  .m-info .m-dir { margin: 0; color: var(--mute); }
+  .m-info .acts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
   .days li.today .d::after { content: "Hoy"; margin-left: 12px; font-family: var(--body); font-size: 11px; font-weight: 600; letter-spacing: .18em; padding: 3px 9px; border-radius: 99px; background: var(--gold); color: var(--ink); vertical-align: middle; }
 
   /* ---------- Contacto ---------- */
@@ -330,6 +352,10 @@
     .menu > div > .ph { grid-column: 1; grid-row: 1 / span 4; aspect-ratio: auto; min-height: 240px; margin: 0; }
     .menu > div > :not(.ph) { grid-column: 2; }
   }
+  @media (max-width: 760px) {
+    .mapa { grid-template-columns: 1fr; }
+    .m-art { min-height: 0; aspect-ratio: 16 / 10; }
+  }
   @media (max-width: 520px) {
     .days li { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
     .days .h { grid-column: 2; grid-row: 1; }
@@ -355,7 +381,7 @@
   /* Dispositivos lentos o ahorro de datos: menos efectos. Movimiento reducido: sin intro ni parallax. */
   .rm .intro { display: none; }
   .rm .a { transition: none; }
-  .rm .cue i, .rm .contact::before, .rm .firma::after, .rm .floaty { animation: none; }
+  .rm .cue i, .rm .contact::before, .rm .firma::after, .rm .floaty, .rm .m-pin i { animation: none; }
   .rm .gal { height: auto !important; }
   .rm .gal .pin { position: static; height: auto; overflow-x: auto; padding-block: 8px 16px; }
   .rm .rail { transform: none !important; }
@@ -373,6 +399,7 @@
   <symbol id="i-ig" viewBox="0 0 24 24">{{ICON:instagram}}</symbol>
   <symbol id="i-wa" viewBox="0 0 24 24">{{ICON:whatsapp}}</symbol>
   <symbol id="i-fb" viewBox="0 0 24 24">{{ICON:facebook}}</symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 2C7.9 2 4.6 5.3 4.6 9.4c0 5.4 6.2 11.6 6.9 12.3.3.3.7.3 1 0 .7-.7 6.9-6.9 6.9-12.3C19.4 5.3 16.1 2 12 2Zm0 10.2a2.8 2.8 0 1 1 0-5.6 2.8 2.8 0 0 1 0 5.6Z"/></symbol>
 </svg>
 
 <div class="intro" id="intro" aria-hidden="true">
@@ -490,6 +517,39 @@
       <li class="rv x" style="--d:.3s"><span class="d">Sábado</span><span class="l">Por confirmar</span><span class="h">–</span></li>
       <li class="rv x" style="--d:.36s"><span class="d">Domingo</span><span class="l">Por confirmar</span><span class="h">–</span></li>
     </ul>
+    <!-- GOOGLE MAPS: el enlace de la ficha y la dirección se rellenan en CHELIBO (googleMaps, direccion) -->
+    <div class="mapa rv" id="mapa">
+      <div class="m-art" id="mapArt" aria-hidden="true">
+        <svg class="m-streets" viewBox="0 0 480 300" preserveAspectRatio="xMidYMid slice">
+          <rect width="480" height="300" fill="#12100d"/>
+          <path d="M318 -10 C300 60 330 120 300 190 S270 270 290 320" stroke="#0f1517" stroke-width="34" fill="none"/>
+          <path d="M318 -10 C300 60 330 120 300 190 S270 270 290 320" stroke="#141c1f" stroke-width="22" fill="none"/>
+          <rect x="44" y="196" width="92" height="70" rx="6" fill="#131810"/>
+          <g stroke="#1c1915" stroke-width="5" fill="none">
+            <path d="M0 44 H480 M0 112 H480 M0 232 H480 M0 284 H480"/>
+            <path d="M28 0 V300 M96 0 V300 M170 0 V300 M392 0 V300 M446 0 V300"/>
+          </g>
+          <g stroke="#26221c" stroke-width="10" fill="none" stroke-linecap="round">
+            <path d="M-10 172 C120 160 200 176 300 168 S420 150 490 158"/>
+            <path d="M232 -10 C226 80 244 150 236 310"/>
+            <path d="M-10 300 L180 120 L270 40 L330 -10"/>
+          </g>
+          <g stroke="#3a3326" stroke-width="2" fill="none" stroke-dasharray="10 9">
+            <path d="M-10 172 C120 160 200 176 300 168 S420 150 490 158"/>
+          </g>
+        </svg>
+        <span class="m-pin"><i></i><svg viewBox="0 0 60 78"><defs><linearGradient id="pinG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6e2a0"/><stop offset=".5" stop-color="#d9b25a"/><stop offset="1" stop-color="#a67c28"/></linearGradient></defs><path d="M30 77 C24 62 4 50 4 30 A26 26 0 0 1 56 30 C56 50 36 62 30 77 Z" fill="url(#pinG)"/><circle cx="30" cy="30" r="20" fill="#0a0907"/><svg x="12" y="12" width="36" height="36" viewBox="0 0 1000 1000" class="m-logo"><use href="#sello"/></svg></svg></span>
+      </div>
+      <div class="m-info">
+        <span class="lbl">En Google Maps</span>
+        <strong class="m-name">Chelibo</strong>
+        <p class="m-dir" id="mapDir">Ubicación, horario y reseñas en nuestra ficha de Google.</p>
+        <div class="acts">
+          <a class="btn sm solid is-pending" data-link="maps" aria-disabled="true"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg>Ver en Google Maps</a>
+          <a class="btn sm is-pending" data-link="ruta" data-hide-pending hidden>Cómo llegar</a>
+        </div>
+      </div>
+    </div>
   </section>
 </div>
 
@@ -547,8 +607,11 @@ var CHELIBO = {
   facebook: '',      // Ej.: 'https://www.facebook.com/chelibo'
   instagram: 'https://www.instagram.com/chelibo_',
   mensajeWhatsApp: 'Hola, Chelibo. Quería hacer una consulta.',
-  intro: 'sello',    // Animación de entrada: 'sello' (tampón de madera y fuego) o 'moneda' (moneda dorada que gira)
-  tema: 'navidad',   // Decoración de temporada: 'navidad' o 'normal' (sin decoración)
+  googleMaps: 'https://share.google/hkcUfuEmj74KOj1CO',   // Ficha de Chelibo en Google (ubicación, horario y reseñas)
+  direccion: '',     // Dirección o zona habitual, ej.: 'Plaza Mayor 1, Madrid'. Con ella salen el mapa y "Cómo llegar"
+  // Versión de la web: 'moderna' (entrada con la moneda dorada, sin decoración), 'sello' (tampón de madera y fuego)
+  // o 'navidad' (tampón y fuego, con nieve, guirnaldas y gorros). Para probarlas: #moderna, #sello o #navidad en el enlace
+  version: 'navidad',
   fotos: ['', '', '', '', '', '']   // En orden; las tres primeras salen también en la carta. Ej.: 'fotos/plato-1.jpg'
 };
 
@@ -572,6 +635,10 @@ var CHELIBO = {
 
   /* ---------- 1. Contacto y fotos ---------- */
   var C = window.CHELIBO || {};
+  /* Versiones de la web: cada una es una entrada y un tema */
+  var VERSIONES = { moderna: { intro: 'moneda', tema: 'normal' }, sello: { intro: 'sello', tema: 'normal' }, navidad: { intro: 'sello', tema: 'navidad' } };
+  var hashV = /^#(moderna|sello|navidad)$/.exec(location.hash || '');
+  var VER = VERSIONES[hashV ? hashV[1] : C.version] || VERSIONES.navidad;
   var isUrl = function (v) { return /^https?:\/\/\S+$/i.test(String(v || '').trim()); };
   function waLink(v) {
     v = String(v || '').trim();
@@ -580,13 +647,31 @@ var CHELIBO = {
     if (n.length < 8) return '';
     return 'https://wa.me/' + n + (C.mensajeWhatsApp ? '?text=' + encodeURIComponent(C.mensajeWhatsApp) : '');
   }
-  var LINKS = { whatsapp: waLink(C.whatsapp), facebook: isUrl(C.facebook) ? C.facebook.trim() : '', instagram: isUrl(C.instagram) ? C.instagram.trim() : '' };
+  var dir = String(C.direccion || '').trim();
+  var LINKS = { whatsapp: waLink(C.whatsapp), facebook: isUrl(C.facebook) ? C.facebook.trim() : '', instagram: isUrl(C.instagram) ? C.instagram.trim() : '',
+    maps: isUrl(C.googleMaps) ? C.googleMaps.trim() : (dir ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(dir) : ''),
+    ruta: dir ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(dir) : '' };
   function enable(el) { el.classList.remove('is-pending'); el.removeAttribute('aria-disabled'); el.hidden = false; }
   $$('[data-link]').forEach(function (a) {
     var url = LINKS[a.getAttribute('data-link')];
     if (url) { a.href = url; a.target = '_blank'; a.rel = 'noopener'; enable(a); }
     else if (a.hasAttribute('data-hide-pending')) a.hidden = true;
   });
+  /* Mapa: con dirección, el texto y (fuera de la vista previa de claude.ai, que no deja incrustar Google) el mapa real */
+  var mapa = $('#mapa');
+  if (mapa) {
+    if (!LINKS.maps) mapa.hidden = true;
+    if (dir) {
+      $('#mapDir').textContent = dir;
+      if (window.top === window) {
+        var ifr = document.createElement('iframe');
+        ifr.title = 'Mapa: ' + dir; ifr.loading = 'lazy'; ifr.referrerPolicy = 'no-referrer-when-downgrade';
+        ifr.src = 'https://www.google.com/maps?q=' + encodeURIComponent(dir) + '&z=16&output=embed';
+        ifr.addEventListener('load', function () { mapa.classList.add('has-map'); });
+        $('#mapArt').appendChild(ifr);
+      }
+    }
+  }
   var tel = String(C.telefono || '').trim(), phone = $('#phone'), num = $('#telNum');
   if (tel && phone && num) {
     num.textContent = tel;
@@ -623,7 +708,7 @@ var CHELIBO = {
 
   /* ---------- 10. Temas de temporada (CHELIBO.tema o #tema-navidad / #tema-normal) ---------- */
   var hashTema = /^#tema-(navidad|normal)$/.exec(location.hash || '');
-  var temaName = hashTema ? hashTema[1] : (C.tema === 'navidad' ? 'navidad' : 'normal');
+  var temaName = hashTema ? hashTema[1] : VER.tema;
   var garlands = [], snowEl = null, snowW = 0, heroHat = null;
   /* Capas de nieve: [densidad por píxel, tamaño mín-máx, opacidad, segundos en cruzar la pantalla, vaivén] */
   var SNOW = [{ k: 1 / 6500, s: [1.4, 4.4], o: [.35, .8], d: 21, sw: 12, sd: 4.8 }, { k: 1 / 42000, s: [5.5, 9.5], o: [.3, .55], d: 11, sw: 26, sd: 3.3 }];
@@ -931,7 +1016,7 @@ var CHELIBO = {
   var heroWrap = $('#heroWrap'), heroCanvas = $('#heroCoin');
   var hero = Coin(heroCanvas, { layers: QL[0][1], depth: .08, pad: 1.06, dpr: QL[0][0], tintScale: .45, tints: TINTS });
   var hashIntro = /^#intro-(sello|moneda)$/.exec(location.hash || '');
-  var introName = hashIntro ? hashIntro[1] : (C.intro === 'moneda' ? 'moneda' : 'sello');
+  var introName = hashIntro ? hashIntro[1] : VER.intro;
   var done = false, safety = 0;
   function finish(mode) {
     if (done || !intro) return;
@@ -1754,6 +1839,7 @@ void main(){
   function measureSoon() { if (mRaf) return; mRaf = requestAnimationFrame(function () { mRaf = 0; measure(); }); }
 
   watch(heroWrap, function (v) { V.hero = v; });
+  watch($('#mapa'));   /* el pin del mapa solo late cuando se ve */
   watch(gal, function (v) { V.gal = v; });
   watch(contact, function (v) { V.contact = v; });
   strips.forEach(function (s) { watch(s.box, function (v) { s.vis = v; }); });

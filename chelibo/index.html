@@ -224,6 +224,28 @@
   .days .l { font-weight: 500; min-width: 0; }
   .days .h { color: var(--mute); text-align: right; font-size: 15px; min-width: 0; }
   .days li.today .d { color: var(--gold); }
+  /* Tarjeta de Google Maps: mapa dibujado (negro y oro) con el pin del sello; con dirección, encima el mapa real */
+  .mapa { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); margin-top: clamp(28px, 5vw, 48px); border: 1px solid var(--line);
+    border-radius: 22px; overflow: hidden; background: #0f0d0a; }
+  .m-art { position: relative; min-height: 260px; overflow: hidden; isolation: isolate; }
+  .m-art .m-streets { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .m-art::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(10,9,7,0) 40%, rgba(10,9,7,.75)); }
+  .m-art iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; opacity: 0; transition: opacity .6s;
+    filter: invert(.92) hue-rotate(180deg) saturate(.55) brightness(.9) sepia(.25); }
+  .mapa.has-map iframe { opacity: 1; }
+  .mapa.has-map .m-pin, .mapa.has-map .m-art::after { display: none; }
+  .m-pin { position: absolute; left: 50%; top: 50%; width: 52px; height: 68px; margin: -64px 0 0 -26px; z-index: 1; filter: drop-shadow(0 10px 14px rgba(0,0,0,.55)); }
+  .m-pin svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .m-pin .m-logo { fill: var(--gold); stroke: var(--gold); }
+  .m-pin i { position: absolute; left: 50%; bottom: -6px; width: 46px; height: 18px; margin-left: -23px; border-radius: 50%; border: 2px solid rgba(217,178,90,.7);
+    animation: pinpulse 2.4s ease-out infinite; }
+  @keyframes pinpulse { from { transform: scale(.35); opacity: .9; } to { transform: scale(1.6); opacity: 0; } }
+  .mapa:not(.live) .m-pin i, .sleep .m-pin i { animation-play-state: paused; }
+  .m-info { display: grid; align-content: center; gap: 8px; padding: clamp(24px, 4vw, 40px); }
+  .m-info .lbl { font-size: 12px; font-weight: 600; letter-spacing: .24em; text-transform: uppercase; color: var(--gold); }
+  .m-info .m-name { font-family: var(--display); font-weight: 400; font-size: clamp(34px, 5vw, 52px); line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
+  .m-info .m-dir { margin: 0; color: var(--mute); }
+  .m-info .acts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
   .days li.today .d::after { content: "Hoy"; margin-left: 12px; font-family: var(--body); font-size: 11px; font-weight: 600; letter-spacing: .18em; padding: 3px 9px; border-radius: 99px; background: var(--gold); color: var(--ink); vertical-align: middle; }
 
   /* ---------- Contacto ---------- */
@@ -339,6 +361,10 @@
     .menu > div > .ph { grid-column: 1; grid-row: 1 / span 4; aspect-ratio: auto; min-height: 240px; margin: 0; }
     .menu > div > :not(.ph) { grid-column: 2; }
   }
+  @media (max-width: 760px) {
+    .mapa { grid-template-columns: 1fr; }
+    .m-art { min-height: 0; aspect-ratio: 16 / 10; }
+  }
   @media (max-width: 520px) {
     .days li { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
     .days .h { grid-column: 2; grid-row: 1; }
@@ -364,7 +390,7 @@
   /* Dispositivos lentos o ahorro de datos: menos efectos. Movimiento reducido: sin intro ni parallax. */
   .rm .intro { display: none; }
   .rm .a { transition: none; }
-  .rm .cue i, .rm .contact::before, .rm .firma::after, .rm .floaty { animation: none; }
+  .rm .cue i, .rm .contact::before, .rm .firma::after, .rm .floaty, .rm .m-pin i { animation: none; }
   .rm .gal { height: auto !important; }
   .rm .gal .pin { position: static; height: auto; overflow-x: auto; padding-block: 8px 16px; }
   .rm .rail { transform: none !important; }
@@ -396,6 +422,7 @@
   <symbol id="i-ig" viewBox="0 0 24 24"><path d="M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077"/></symbol>
   <symbol id="i-wa" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></symbol>
   <symbol id="i-fb" viewBox="0 0 24 24"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 2C7.9 2 4.6 5.3 4.6 9.4c0 5.4 6.2 11.6 6.9 12.3.3.3.7.3 1 0 .7-.7 6.9-6.9 6.9-12.3C19.4 5.3 16.1 2 12 2Zm0 10.2a2.8 2.8 0 1 1 0-5.6 2.8 2.8 0 0 1 0 5.6Z"/></symbol>
 </svg>
 
 <div class="intro" id="intro" aria-hidden="true">
@@ -513,6 +540,39 @@
       <li class="rv x" style="--d:.3s"><span class="d">Sábado</span><span class="l">Por confirmar</span><span class="h">–</span></li>
       <li class="rv x" style="--d:.36s"><span class="d">Domingo</span><span class="l">Por confirmar</span><span class="h">–</span></li>
     </ul>
+    <!-- GOOGLE MAPS: el enlace de la ficha y la dirección se rellenan en CHELIBO (googleMaps, direccion) -->
+    <div class="mapa rv" id="mapa">
+      <div class="m-art" id="mapArt" aria-hidden="true">
+        <svg class="m-streets" viewBox="0 0 480 300" preserveAspectRatio="xMidYMid slice">
+          <rect width="480" height="300" fill="#12100d"/>
+          <path d="M318 -10 C300 60 330 120 300 190 S270 270 290 320" stroke="#0f1517" stroke-width="34" fill="none"/>
+          <path d="M318 -10 C300 60 330 120 300 190 S270 270 290 320" stroke="#141c1f" stroke-width="22" fill="none"/>
+          <rect x="44" y="196" width="92" height="70" rx="6" fill="#131810"/>
+          <g stroke="#1c1915" stroke-width="5" fill="none">
+            <path d="M0 44 H480 M0 112 H480 M0 232 H480 M0 284 H480"/>
+            <path d="M28 0 V300 M96 0 V300 M170 0 V300 M392 0 V300 M446 0 V300"/>
+          </g>
+          <g stroke="#26221c" stroke-width="10" fill="none" stroke-linecap="round">
+            <path d="M-10 172 C120 160 200 176 300 168 S420 150 490 158"/>
+            <path d="M232 -10 C226 80 244 150 236 310"/>
+            <path d="M-10 300 L180 120 L270 40 L330 -10"/>
+          </g>
+          <g stroke="#3a3326" stroke-width="2" fill="none" stroke-dasharray="10 9">
+            <path d="M-10 172 C120 160 200 176 300 168 S420 150 490 158"/>
+          </g>
+        </svg>
+        <span class="m-pin"><i></i><svg viewBox="0 0 60 78"><defs><linearGradient id="pinG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6e2a0"/><stop offset=".5" stop-color="#d9b25a"/><stop offset="1" stop-color="#a67c28"/></linearGradient></defs><path d="M30 77 C24 62 4 50 4 30 A26 26 0 0 1 56 30 C56 50 36 62 30 77 Z" fill="url(#pinG)"/><circle cx="30" cy="30" r="20" fill="#0a0907"/><svg x="12" y="12" width="36" height="36" viewBox="0 0 1000 1000" class="m-logo"><use href="#sello"/></svg></svg></span>
+      </div>
+      <div class="m-info">
+        <span class="lbl">En Google Maps</span>
+        <strong class="m-name">Chelibo</strong>
+        <p class="m-dir" id="mapDir">Ubicación, horario y reseñas en nuestra ficha de Google.</p>
+        <div class="acts">
+          <a class="btn sm solid is-pending" data-link="maps" aria-disabled="true"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg>Ver en Google Maps</a>
+          <a class="btn sm is-pending" data-link="ruta" data-hide-pending hidden>Cómo llegar</a>
+        </div>
+      </div>
+    </div>
   </section>
 </div>
 
@@ -570,8 +630,11 @@ var CHELIBO = {
   facebook: '',      // Ej.: 'https://www.facebook.com/chelibo'
   instagram: 'https://www.instagram.com/chelibo_',
   mensajeWhatsApp: 'Hola, Chelibo. Quería hacer una consulta.',
-  intro: 'sello',    // Animación de entrada: 'sello' (tampón de madera y fuego) o 'moneda' (moneda dorada que gira)
-  tema: 'navidad',   // Decoración de temporada: 'navidad' o 'normal' (sin decoración)
+  googleMaps: 'https://share.google/hkcUfuEmj74KOj1CO',   // Ficha de Chelibo en Google (ubicación, horario y reseñas)
+  direccion: '',     // Dirección o zona habitual, ej.: 'Plaza Mayor 1, Madrid'. Con ella salen el mapa y "Cómo llegar"
+  // Versión de la web: 'moderna' (entrada con la moneda dorada, sin decoración), 'sello' (tampón de madera y fuego)
+  // o 'navidad' (tampón y fuego, con nieve, guirnaldas y gorros). Para probarlas: #moderna, #sello o #navidad en el enlace
+  version: 'navidad',
   fotos: ['', '', '', '', '', '']   // En orden; las tres primeras salen también en la carta. Ej.: 'fotos/plato-1.jpg'
 };
 
@@ -595,6 +658,10 @@ var CHELIBO = {
 
   /* ---------- 1. Contacto y fotos ---------- */
   var C = window.CHELIBO || {};
+  /* Versiones de la web: cada una es una entrada y un tema */
+  var VERSIONES = { moderna: { intro: 'moneda', tema: 'normal' }, sello: { intro: 'sello', tema: 'normal' }, navidad: { intro: 'sello', tema: 'navidad' } };
+  var hashV = /^#(moderna|sello|navidad)$/.exec(location.hash || '');
+  var VER = VERSIONES[hashV ? hashV[1] : C.version] || VERSIONES.navidad;
   var isUrl = function (v) { return /^https?:\/\/\S+$/i.test(String(v || '').trim()); };
   function waLink(v) {
     v = String(v || '').trim();
@@ -603,13 +670,31 @@ var CHELIBO = {
     if (n.length < 8) return '';
     return 'https://wa.me/' + n + (C.mensajeWhatsApp ? '?text=' + encodeURIComponent(C.mensajeWhatsApp) : '');
   }
-  var LINKS = { whatsapp: waLink(C.whatsapp), facebook: isUrl(C.facebook) ? C.facebook.trim() : '', instagram: isUrl(C.instagram) ? C.instagram.trim() : '' };
+  var dir = String(C.direccion || '').trim();
+  var LINKS = { whatsapp: waLink(C.whatsapp), facebook: isUrl(C.facebook) ? C.facebook.trim() : '', instagram: isUrl(C.instagram) ? C.instagram.trim() : '',
+    maps: isUrl(C.googleMaps) ? C.googleMaps.trim() : (dir ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(dir) : ''),
+    ruta: dir ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(dir) : '' };
   function enable(el) { el.classList.remove('is-pending'); el.removeAttribute('aria-disabled'); el.hidden = false; }
   $$('[data-link]').forEach(function (a) {
     var url = LINKS[a.getAttribute('data-link')];
     if (url) { a.href = url; a.target = '_blank'; a.rel = 'noopener'; enable(a); }
     else if (a.hasAttribute('data-hide-pending')) a.hidden = true;
   });
+  /* Mapa: con dirección, el texto y (fuera de la vista previa de claude.ai, que no deja incrustar Google) el mapa real */
+  var mapa = $('#mapa');
+  if (mapa) {
+    if (!LINKS.maps) mapa.hidden = true;
+    if (dir) {
+      $('#mapDir').textContent = dir;
+      if (window.top === window) {
+        var ifr = document.createElement('iframe');
+        ifr.title = 'Mapa: ' + dir; ifr.loading = 'lazy'; ifr.referrerPolicy = 'no-referrer-when-downgrade';
+        ifr.src = 'https://www.google.com/maps?q=' + encodeURIComponent(dir) + '&z=16&output=embed';
+        ifr.addEventListener('load', function () { mapa.classList.add('has-map'); });
+        $('#mapArt').appendChild(ifr);
+      }
+    }
+  }
   var tel = String(C.telefono || '').trim(), phone = $('#phone'), num = $('#telNum');
   if (tel && phone && num) {
     num.textContent = tel;
@@ -646,7 +731,7 @@ var CHELIBO = {
 
   /* ---------- 10. Temas de temporada (CHELIBO.tema o #tema-navidad / #tema-normal) ---------- */
   var hashTema = /^#tema-(navidad|normal)$/.exec(location.hash || '');
-  var temaName = hashTema ? hashTema[1] : (C.tema === 'navidad' ? 'navidad' : 'normal');
+  var temaName = hashTema ? hashTema[1] : VER.tema;
   var garlands = [], snowEl = null, snowW = 0, heroHat = null;
   /* Capas de nieve: [densidad por píxel, tamaño mín-máx, opacidad, segundos en cruzar la pantalla, vaivén] */
   var SNOW = [{ k: 1 / 6500, s: [1.4, 4.4], o: [.35, .8], d: 21, sw: 12, sd: 4.8 }, { k: 1 / 42000, s: [5.5, 9.5], o: [.3, .55], d: 11, sw: 26, sd: 3.3 }];
@@ -954,7 +1039,7 @@ var CHELIBO = {
   var heroWrap = $('#heroWrap'), heroCanvas = $('#heroCoin');
   var hero = Coin(heroCanvas, { layers: QL[0][1], depth: .08, pad: 1.06, dpr: QL[0][0], tintScale: .45, tints: TINTS });
   var hashIntro = /^#intro-(sello|moneda)$/.exec(location.hash || '');
-  var introName = hashIntro ? hashIntro[1] : (C.intro === 'moneda' ? 'moneda' : 'sello');
+  var introName = hashIntro ? hashIntro[1] : VER.intro;
   var done = false, safety = 0;
   function finish(mode) {
     if (done || !intro) return;
@@ -1777,6 +1862,7 @@ void main(){
   function measureSoon() { if (mRaf) return; mRaf = requestAnimationFrame(function () { mRaf = 0; measure(); }); }
 
   watch(heroWrap, function (v) { V.hero = v; });
+  watch($('#mapa'));   /* el pin del mapa solo late cuando se ve */
   watch(gal, function (v) { V.gal = v; });
   watch(contact, function (v) { V.contact = v; });
   strips.forEach(function (s) { watch(s.box, function (v) { s.vis = v; }); });

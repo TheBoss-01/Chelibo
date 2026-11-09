@@ -3,6 +3,8 @@
 
     python3 chelibo/build.py                      -> chelibo/index.html (web completa)
     python3 chelibo/build.py --fragmento RUTA     -> además, la versión para publicar en claude.ai
+    python3 chelibo/build.py --fragmento RUTA --version moderna|sello|navidad
+                                                  -> esa vista con otra versión (index.html no cambia)
 
 La plantilla es chelibo/src/pagina.html. Los datos de contacto y las fotos
 se rellenan en el objeto CHELIBO, al principio de su <script>.
@@ -13,6 +15,7 @@ import re
 import sys
 
 AQUI = pathlib.Path(__file__).resolve().parent
+VERSIONES = {'moderna': 'Moderna', 'sello': 'Sello', 'navidad': 'Navidad'}
 ASSETS = AQUI / 'assets'
 
 
@@ -53,7 +56,17 @@ def construir():
 
     if '--fragmento' in sys.argv:
         destino = pathlib.Path(sys.argv[sys.argv.index('--fragmento') + 1])
-        destino.write_text(pagina, encoding='utf-8')
+        fragmento = pagina
+        if '--version' in sys.argv:
+            version = sys.argv[sys.argv.index('--version') + 1]
+            if version not in VERSIONES:
+                sys.exit('Versión desconocida: %s (usa %s)' % (version, ', '.join(VERSIONES)))
+            actual = re.search(r"\n  version: '([a-z]+)'", fragmento).group(1)
+            fragmento = re.sub(r"(\n  version: ')[a-z]+(')", lambda m: m.group(1) + version + m.group(2), fragmento, count=1)
+            if version != actual:
+                fragmento = fragmento.replace('<title>Chelibo Foodtruck</title>',
+                                              '<title>Chelibo Foodtruck · %s</title>' % VERSIONES[version], 1)
+        destino.write_text(fragmento, encoding='utf-8')
     print('index.html: %d bytes' % len(cabecera + pagina))
 
 
