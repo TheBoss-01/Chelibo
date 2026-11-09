@@ -929,10 +929,12 @@ void main(){
       var sec = $('#pincho'), vis = false;
       if (window.IntersectionObserver) new IntersectionObserver(function (es) { vis = es[0].isIntersecting; if (vis) { if (!S.waved) { S.waved = true; S.waveT = now(); } loop(); } }, { threshold: .15 }).observe(sec);
       /* Mira hacia el dedo o el ratón */
-      addEventListener('pointermove', function (e) {
+      function look(e) {
         var r = btn.getBoundingClientRect(), dx = (e.clientX - (r.left + r.width / 2)) / innerWidth, dy = (e.clientY - (r.top + r.height * .4)) / innerHeight;
-        S.ty = clamp(dx * 1.6, -.6, .6); S.tp = clamp(dy * 1.1, -.35, .35); loop();
-      }, { passive: true });
+        S.ty = clamp(-dx * 1.6, -.6, .6); S.tp = clamp(dy * 1.1, -.35, .35); loop();   /* el giro del shader va al revés que la pantalla */
+      }
+      addEventListener('pointermove', look, { passive: true });
+      addEventListener('pointerdown', look, { passive: true });   /* en el móvil, mira hacia donde tocas */
       btn.addEventListener('click', function () { S.jv = 3.2; S.bris = 1; S.sleep = 0; S.waveT = now() + 250; });
       function size() {
         var css = btn.clientWidth || 300, pr2 = Math.min(window.devicePixelRatio || 1, 2) * S.q, w = Math.round(css * pr2);
