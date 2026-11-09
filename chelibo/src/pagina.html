@@ -196,8 +196,9 @@
   .item p { margin: 4px 0 0; color: var(--mute); font-size: 14.5px; max-width: 28em; }
 
   /* ---------- Galería: se queda fija y las fotos pasan de lado ---------- */
-  .gal { position: relative; margin-top: clamp(64px, 10vw, 128px); }
-  .gal .pin { position: -webkit-sticky; position: sticky; top: 0; height: 100vh; height: 100svh; display: flex; flex-direction: column; justify-content: center; gap: clamp(16px, 4vh, 40px); overflow: hidden;
+  .gal { position: relative; margin-top: clamp(8px, 2vw, 24px); }
+  .gal .pin { position: -webkit-sticky; position: sticky; top: 0; height: 100vh; height: 100svh; display: flex; flex-direction: column; justify-content: flex-start; gap: clamp(16px, 4vh, 40px); overflow: hidden;
+    padding-top: calc(72px + 2vh);   /* arriba, bajo la cabecera: sin hueco negro tras la carta */
     padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .gal .gh { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; width: 100%; max-width: 1120px; margin: 0 auto; }
   .gal .gh p { margin: 0; color: var(--mute); font-size: 15px; }
@@ -683,7 +684,7 @@
 </div></div>
 
 <div class="wrap">
-  <section class="block pincho" id="pincho">
+  <section class="block pincho" id="pincho" hidden>
     <div class="head"><h2 data-drift="1">Conoce a Pincho</h2><p class="rv">La mascota de Chelibo: un puercoespín con las púas de oro.</p></div>
     <div class="p-hero">
       <button class="p-pet rv" type="button" id="pinchoBtn" aria-label="Pincho, la mascota de Chelibo. Tócalo y erizará las púas">
@@ -755,6 +756,7 @@ var CHELIBO = {
   // Versión de la web: 'moderna' (entrada con la moneda dorada, sin decoración), 'sello' (tampón de madera y fuego)
   // o 'navidad' (tampón y fuego, con nieve, guirnaldas y gorros). Para probarlas: #moderna, #sello o #navidad en el enlace
   version: 'navidad',
+  pincho: false,     // Pincho, la mascota (apartado, acompañante de la esquina y merchandising). Guardado: true para volver a sacarlo
   // Reseñas de la ficha de Google, copiadas tal cual (nombre, estrellas 1-5, texto y cuándo). Ej.:
   // { nombre: 'Laura G.', estrellas: 5, texto: 'Las mejores empanadas...', cuando: 'hace 2 semanas' }
   valoracion: '',    // Nota media y número de reseñas de Google, ej.: '4,9' y 37
@@ -812,7 +814,9 @@ var CHELIBO = {
   })();
   /* ---------- Pincho acompañante: desde la esquina por toda la página; en la carta te elige el menú y te pide algo ---------- */
   var PB = { on: false, secVis: false, has3d: false, route: function () {} };
-  (function pinchoBuddy() {
+  var PINCHO = C.pincho === true;
+  if (PINCHO) { var ps = $('#pincho'); if (ps) ps.hidden = false; }
+  if (PINCHO) (function pinchoBuddy() {
     var box = document.createElement('div');
     box.className = 'pbuddy'; box.hidden = true;
     box.innerHTML = '<button class="pb-pet" type="button" aria-label="Pincho. Tócalo para que te recomiende algo"><svg viewBox="0 0 400 400" aria-hidden="true"><use href="#m-pincho"/></svg></button>' +
@@ -962,7 +966,7 @@ void main(){
   gl_FragColor = vec4(col * cov, cov);
 }`;
   (function pinchoLive() {
-    var btn = $('#pinchoBtn'); if (!btn) return;
+    var btn = $('#pinchoBtn'); if (!btn || !PINCHO) return;
     var cv = document.createElement('canvas'), gl = null;
     try { gl = cv.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false }); } catch (er) { gl = null; }
     if (!gl) return;
@@ -2236,6 +2240,9 @@ void main(){
   var M = { vw: innerWidth, vh: innerHeight, docH: 1, galTop: 0, dist: 0, figs: [], drifts: [], pars: [] };
   function docTop(el) { var y = 0; while (el) { y += el.offsetTop || 0; el = el.offsetParent; } return y; }
   function measure() {
+    /* Fotos: el bloque queda algo por encima del centro de la pantalla fija (poco hueco arriba y abajo) */
+    if (pin) { pin.style.paddingTop = ''; var gh = $('.gh', pin), cont = (gh ? gh.offsetHeight : 0) + (rail ? rail.offsetHeight : 0) + 40;
+      pin.style.paddingTop = Math.max(76, Math.round((pin.clientHeight - cont) * .3)) + 'px'; }
     garlands.forEach(drawGarland); drawSnow();
     M.vw = document.documentElement.clientWidth || innerWidth;
     M.vh = innerHeight;

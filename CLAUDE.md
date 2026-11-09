@@ -38,7 +38,8 @@
   (abren `googleMaps`). Las reseñas reales se copian en `CHELIBO.resenas` ({nombre, estrellas, texto, cuando}) con
   `valoracion` y `numResenas`; vacío, solo salen los botones. No se pueden leer de Google desde la nube ni desde
   claude.ai, y nunca se inventan: pedírselas al usuario.
-- Mascota y marca (sección "Conoce a Pincho", `#pincho`, en las tres versiones): Pincho, un puercoespín con púas doradas
+- GUARDADO "en el cajón" a petición del usuario: `pincho: false` en `CHELIBO` oculta el apartado, el acompañante y el
+  merchandising (el código sigue; `true` lo saca). Mascota y marca (sección "Conoce a Pincho", `#pincho`, en las tres versiones): Pincho, un puercoespín con púas doradas
   (símbolo SVG `#m-pincho`; al tocarlo eriza las púas y salta, parpadea solo cuando se ve) y "la C de púas", el símbolo
   reconocible de la marca (`#cpua`, la C del nombre hecha con púas). Debajo, merchandising de muestra en SVG (camiseta,
   gorra, taza, pegatina). Las púas y la C se generan con un script de Python (no a mano).
@@ -90,6 +91,8 @@
   navegador de la nube: en reposo, de unos 380 a 240 ms de procesador por segundo (sin adornos es 0). Si se añade otra
   animación continua al tema, que siga la misma regla o vuelve a 60 imágenes por segundo. El gorro 3D se compila en
   segundo plano al empezar la intro (`prepHat`).
+- Entre la carta y las fotos no hay hueco negro: `.gal` casi sin margen y el bloque de fotos de la pantalla fija va algo
+  por encima del centro (`padding-top` calculado en `measure()`).
 - Reposo: a los 12 s sin tocar nada se pone la clase `sleep` (pausa animaciones de CSS) con un temporizador en `kick()`,
   aunque el bucle de animación ya se haya parado.
 - En móvil la portada va centrada (sello, textos y botones).
