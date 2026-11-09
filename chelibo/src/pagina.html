@@ -357,6 +357,25 @@
     .menu > div > .ph { grid-column: 1; grid-row: 1 / span 4; aspect-ratio: auto; min-height: 240px; margin: 0; }
     .menu > div > :not(.ph) { grid-column: 2; }
   }
+  /* Reseñas de Google: cabecera con la nota y una fila de tarjetas que se desliza en horizontal */
+  .resenas { margin-top: clamp(20px, 3vw, 28px); border: 1px solid var(--line); border-radius: 22px; padding: clamp(22px, 4vw, 36px); background: #0f0d0a; }
+  .r-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 18px; }
+  .r-head .lbl { font-size: 12px; font-weight: 600; letter-spacing: .24em; text-transform: uppercase; color: var(--gold); }
+  .r-head .acts { display: flex; flex-wrap: wrap; gap: 10px; }
+  .r-score { display: flex; align-items: baseline; gap: 12px; margin-top: 8px; }
+  .r-score b { font-family: var(--display); font-weight: 400; font-size: clamp(40px, 6vw, 60px); line-height: 1; }
+  .r-stars { color: var(--gold); letter-spacing: .12em; font-size: 18px; }
+  .r-stars i { font-style: normal; color: #3a3326; }
+  .r-total, .r-empty { color: var(--mute); }
+  .r-empty { margin: 8px 0 0; max-width: 46ch; }
+  .r-rail { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 340px); gap: 14px; margin-top: 24px; overflow-x: auto;
+    scroll-snap-type: x mandatory; padding-bottom: 6px; }
+  .r-card { margin: 0; scroll-snap-align: start; display: grid; align-content: start; gap: 10px; padding: 20px; border-radius: 16px; background: #15120e; border: 1px solid var(--line); }
+  .r-top { display: flex; align-items: center; gap: 12px; }
+  .r-top b { display: block; } .r-top small { color: var(--mute); }
+  .r-av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--gold-grad); color: var(--ink); font-weight: 700; flex: none; }
+  .r-card blockquote { margin: 0; line-height: 1.55; }
+  .r-card figcaption { font-size: 12px; color: var(--mute); }
   @media (max-width: 760px) {
     .mapa { grid-template-columns: 1fr; }
     .m-art { min-height: 0; aspect-ratio: 16 / 10; }
@@ -555,6 +574,21 @@
         </div>
       </div>
     </div>
+    <!-- RESEÑAS: se copian de la ficha de Google en CHELIBO.resenas (nunca inventadas) -->
+    <div class="resenas rv" id="resenas">
+      <div class="r-head">
+        <div>
+          <span class="lbl">Reseñas en Google</span>
+          <div class="r-score" id="rScore" hidden><b id="rNota"></b><span class="r-stars" id="rStars"></span><span class="r-total" id="rTotal"></span></div>
+          <p class="r-empty" id="rEmpty">Lee lo que dicen nuestros clientes en Google, o cuéntanos qué te pareció.</p>
+        </div>
+        <div class="acts">
+          <a class="btn sm is-pending" data-link="maps" aria-disabled="true">Ver todas en Google</a>
+          <a class="btn sm solid is-pending" data-link="maps" aria-disabled="true">Escribir una reseña</a>
+        </div>
+      </div>
+      <div class="r-rail" id="rRail" hidden></div>
+    </div>
   </section>
 </div>
 
@@ -617,6 +651,11 @@ var CHELIBO = {
   // Versión de la web: 'moderna' (entrada con la moneda dorada, sin decoración), 'sello' (tampón de madera y fuego)
   // o 'navidad' (tampón y fuego, con nieve, guirnaldas y gorros). Para probarlas: #moderna, #sello o #navidad en el enlace
   version: 'navidad',
+  // Reseñas de la ficha de Google, copiadas tal cual (nombre, estrellas 1-5, texto y cuándo). Ej.:
+  // { nombre: 'Laura G.', estrellas: 5, texto: 'Las mejores empanadas...', cuando: 'hace 2 semanas' }
+  valoracion: '',    // Nota media y número de reseñas de Google, ej.: '4,9' y 37
+  numResenas: 0,
+  resenas: [],
   fotos: ['', '', '', '', '', '']   // En orden; las tres primeras salen también en la carta. Ej.: 'fotos/plato-1.jpg'
 };
 
@@ -662,6 +701,28 @@ var CHELIBO = {
     if (url) { a.href = url; a.target = '_blank'; a.rel = 'noopener'; enable(a); }
     else if (a.hasAttribute('data-hide-pending')) a.hidden = true;
   });
+  /* Reseñas: nota media y tarjetas con las reseñas reales que haya en CHELIBO */
+  (function () {
+    var box = $('#resenas'); if (!box) return;
+    var stars = function (n) { n = Math.max(0, Math.min(5, Math.round(+n || 0))); return '★★★★★'.slice(0, n) + '<i>' + '★★★★★'.slice(0, 5 - n) + '</i>'; };
+    var esc = function (s) { return String(s || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var nota = String(C.valoracion || '').trim(), list = (C.resenas || []).filter(function (x) { return x && x.texto; });
+    if (nota) {
+      $('#rScore').hidden = false; $('#rNota').textContent = nota;
+      $('#rStars').innerHTML = stars(parseFloat(nota.replace(',', '.')));
+      if (+C.numResenas) $('#rTotal').textContent = C.numResenas + ' reseñas';
+    }
+    if (list.length) {
+      $('#rEmpty').hidden = true;
+      var rail = $('#rRail'); rail.hidden = false;
+      rail.innerHTML = list.map(function (x) {
+        var ini = esc(String(x.nombre || '?').trim().charAt(0).toUpperCase());
+        return '<figure class="r-card"><div class="r-top"><span class="r-av">' + ini + '</span><span><b>' + esc(x.nombre || 'Cliente') +
+          '</b><small>' + esc(x.cuando || '') + '</small></span></div><span class="r-stars">' + stars(x.estrellas || 5) +
+          '</span><blockquote>' + esc(x.texto) + '</blockquote><figcaption>Reseña de Google</figcaption></figure>';
+      }).join('');
+    }
+  })();
   /* Mapa: con dirección, el texto y (fuera de la vista previa de claude.ai, que no deja incrustar Google) el mapa real */
   var mapa = $('#mapa');
   if (mapa) {

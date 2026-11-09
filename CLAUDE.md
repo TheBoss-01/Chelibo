@@ -34,6 +34,10 @@
   búsqueda con kgmid=/g/11zy2_gvhd). Falta `direccion`: con ella sale el texto, "Cómo llegar" y, fuera de las vistas
   de claude.ai (que no dejan incrustar Google), el mapa real en un iframe. Las páginas de Google no se pueden leer desde
   la nube (piden un navegador), así que la dirección y los horarios hay que pedírselos al usuario.
+- Reseñas ("Dónde estamos", las tres versiones): bloque bajo el mapa con "Ver todas en Google" y "Escribir una reseña"
+  (abren `googleMaps`). Las reseñas reales se copian en `CHELIBO.resenas` ({nombre, estrellas, texto, cuando}) con
+  `valoracion` y `numResenas`; vacío, solo salen los botones. No se pueden leer de Google desde la nube ni desde
+  claude.ai, y nunca se inventan: pedírselas al usuario.
 - Rendimiento: el sello 3D se dibuja en un `<canvas>` (una sola capa) y solo se redibuja si cambia el giro;
   el flotado, la firma y las cintas son animaciones de GPU. El bucle JS se para cuando no hay nada que mover
   y los efectos de fondo se pausan tras 12 s sin interacción. Con "movimiento reducido" la página es estática.
