@@ -261,6 +261,13 @@
   @keyframes sweep { to { transform: translate3d(-50%, 0, 0); } }
   .contact:not(.live)::before, .lite .contact::before, .sleep .contact::before, .sleep .cue i { animation-play-state: paused; }
   .contact .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px clamp(24px, 6vw, 80px); align-items: start; }
+  /* Escríbenos va en un recuadro negro con borde dorado (el brillo del fondo queda dentro del recuadro) */
+  .contact { background-color: var(--bg); border: 0; }
+  .contact::before { display: none; }
+  .contact .wrap { position: relative; overflow: hidden; isolation: isolate; background: #0d0b08; border: 1.5px solid var(--gold);
+    border-radius: 28px; padding: clamp(28px, 5vw, 64px); box-shadow: 0 0 0 6px rgba(217,178,90,.06), 0 30px 80px rgba(0,0,0,.5); }
+  .contact .wrap::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+    background: radial-gradient(ellipse 80% 70% at 15% 0%, rgba(217,178,90,.10), rgba(217,178,90,0) 60%); }
   .contact h2 { grid-column: 1 / -1; font-size: clamp(52px, 13vw, 176px); color: var(--gold); }
   @supports (-webkit-background-clip: text) { .contact h2 .c { background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent;
     padding-top: .3em; margin-top: -.3em; } }   /* el degradado cubre también la tilde */
