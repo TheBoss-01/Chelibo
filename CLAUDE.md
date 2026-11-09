@@ -46,6 +46,11 @@
   gorra y la camiseta negras con la C de púas dorada, respira, parpadea, sigue con la mirada al ratón o al dedo, saluda
   al aparecer, al tocarlo salta y eriza las púas, y se duerme ("z z z") cuando la página entra en reposo. Va a unos
   30 fotogramas por segundo y solo mientras se ve; si va lento baja la resolución.
+  Pincho acompaña desde la esquina inferior izquierda por toda la página (`pinchoBuddy`, objeto `PB`; la derecha es para
+  WhatsApp): aparece al bajar de la portada, se esconde cuando se ve su apartado (el mismo lienzo 3D pasa de un sitio a
+  otro con `PB.place`) y se puede cerrar con la × (solo para esa visita). Al llegar a la carta, y al tocarlo, propone un
+  menú (principal de "Principales", guarnición de "Para empezar", bebida) o pide algo para él como un niño ("¿me lo
+  pillas? porfa"). Lee los nombres de los platos de la propia carta: con la carta real dirá los platos reales.
 - Rendimiento: el sello 3D se dibuja en un `<canvas>` (una sola capa) y solo se redibuja si cambia el giro;
   el flotado, la firma y las cintas son animaciones de GPU. El bucle JS se para cuando no hay nada que mover
   y los efectos de fondo se pausan tras 12 s sin interacción. Con "movimiento reducido" la página es estática.

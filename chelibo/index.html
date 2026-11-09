@@ -380,6 +380,23 @@
     .menu > div > :not(.ph) { grid-column: 2; }
   }
 
+  /* Pincho acompañante (esquina inferior izquierda; la derecha es para WhatsApp) */
+  .pbuddy { position: fixed; z-index: 44; left: max(12px, env(safe-area-inset-left, 0px)); bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    width: 108px; pointer-events: none; opacity: 0; transform: translateY(30px) scale(.8); transition: opacity .45s, transform .55s cubic-bezier(.3,1.5,.5,1); }
+  .pbuddy.in { opacity: 1; transform: none; pointer-events: auto; }
+  .pb-pet { position: relative; display: block; width: 108px; aspect-ratio: 1; padding: 0; border: 0; cursor: pointer;
+    background: radial-gradient(circle at 50% 62%, rgba(217,178,90,.22), rgba(217,178,90,0) 64%); }
+  .pb-pet svg { width: 100%; height: 100%; }
+  .pb-pet:has(.p3d) > svg { visibility: hidden; }
+  .pb-pet .p3d { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .pb-say { position: absolute; left: 82px; bottom: 74px; width: min(250px, calc(100vw - 120px)); margin: 0; padding: 12px 14px; border-radius: 16px 16px 16px 4px;
+    background: #0d0b08; border: 1.5px solid var(--gold); color: var(--fg); font-size: 14px; line-height: 1.4; box-shadow: 0 12px 30px rgba(0,0,0,.5);
+    opacity: 0; transform: translateY(8px) scale(.95); transform-origin: 0 100%; transition: opacity .3s, transform .4s cubic-bezier(.3,1.5,.5,1); pointer-events: none; cursor: pointer; }
+  .pb-say b { color: var(--gold); }
+  .pbuddy.talk .pb-say { opacity: 1; transform: none; pointer-events: auto; }
+  .pb-x { position: absolute; left: 0; top: -6px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: #0d0b08;
+    color: var(--mute); font-size: 16px; line-height: 1; cursor: pointer; opacity: .7; }
+  .pb-pet.zz::after { content: "z z"; position: absolute; right: 0; top: 0; font-family: var(--display); color: var(--gold); font-size: 16px; }
   /* Pincho, la mascota, y la C de púas */
   .p-hero { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(24px, 5vw, 64px); align-items: center; margin-top: 8px; }
   .p-pet { display: block; width: 100%; max-width: 420px; justify-self: center; padding: 0; border: 0; background: radial-gradient(circle at 50% 60%, rgba(217,178,90,.18), rgba(217,178,90,0) 62%); cursor: pointer; -webkit-tap-highlight-color: transparent; }
@@ -816,6 +833,48 @@ var CHELIBO = {
     var b = $('#pinchoBtn'); if (!b) return;
     b.addEventListener('click', function () { b.classList.remove('erizo'); void b.offsetWidth; b.classList.add('erizo'); setTimeout(function () { b.classList.remove('erizo'); }, 700); });
   })();
+  /* ---------- Pincho acompañante: desde la esquina por toda la página; en la carta te elige el menú y te pide algo ---------- */
+  var PB = { on: false, secVis: false, has3d: false, route: function () {} };
+  (function pinchoBuddy() {
+    var box = document.createElement('div');
+    box.className = 'pbuddy'; box.hidden = true;
+    box.innerHTML = '<button class="pb-pet" type="button" aria-label="Pincho. Tócalo para que te recomiende algo"><svg viewBox="0 0 400 400" aria-hidden="true"><use href="#m-pincho"/></svg></button>' +
+      '<p class="pb-say" role="status" aria-live="polite"></p><button class="pb-x" type="button" aria-label="Ocultar a Pincho">×</button>';
+    document.body.appendChild(box);
+    var pet = $('.pb-pet', box), say = $('.pb-say', box), shut = false, hideT = 0, saidCarta = -1e9;
+    try { shut = sessionStorage.getItem('pinchoFuera') === '1'; } catch (er) {}
+    function items(col) { var c = $$('#carta .menu > div')[col]; return c ? $$('.item .row > span:first-child', c).map(function (e) { return e.textContent.trim(); }).filter(Boolean) : []; }
+    function pick(a) { return a.length ? a[Math.floor(Math.random() * a.length)] : ''; }
+    var PIDE = ['¿Me lo pillas? Porfa, porfa, porfaaa…', 'Si me lo pillas me porto bien, lo prometo.', 'Venga, que es pequeñito… ¿me lo pillas?',
+      'Mira qué cara pongo… ¿me lo compras?', 'Solo uno, ¿vale? ¡Porfa!', 'Me lo he ganado, que hoy he sido bueno. ¿Me lo pillas?'];
+    function talk(html, ms) {
+      say.innerHTML = html; box.classList.add('talk'); clearTimeout(hideT);
+      hideT = setTimeout(function () { box.classList.remove('talk'); }, ms || 9000);
+      if (PB.poke) PB.poke();
+    }
+    function combo() {
+      var main = pick(items(1)), side = pick(items(0)), drinks = items(2), drink = drinks[0] || '', treat = pick(drinks.slice(1));
+      if (!main) { talk('¡Hola! Soy Pincho. Cuando veas la carta te digo qué pedir.'); return; }
+      if (Math.random() < .5 || !treat) talk('Yo de ti me pediría <b>' + main + '</b> con <b>' + side + '</b>' + (drink ? ' y <b>' + drink + '</b>' : '') + '. ¡Combinación ganadora!');
+      else talk('Para ti, <b>' + main + '</b> con <b>' + side + '</b>… y para mí <b>' + treat + '</b>. ' + pick(PIDE));
+    }
+    PB.route = function () {
+      var y = window.scrollY || 0, show = !shut && !introOn && y > innerHeight * .6 && !PB.secVis;
+      if (show !== PB.on) { PB.on = show; box.hidden = false; box.classList.toggle('in', show); if (!show) box.classList.remove('talk'); }
+      if (PB.place) PB.place(PB.secVis ? $('#pinchoBtn') : pet);
+      if (PB.wake) PB.wake();
+      if (typeof maybeCarta === 'function') maybeCarta();
+    };
+    addEventListener('scroll', function () { PB.route(); }, { passive: true });
+    var carta = $('#carta');
+    var cartaVis = false;
+    function maybeCarta() { if (cartaVis && PB.on && now() - saidCarta > 25000) { saidCarta = now(); setTimeout(combo, 700); } }
+    if (carta && window.IntersectionObserver) new IntersectionObserver(function (es) { cartaVis = es[0].isIntersecting; PB.route(); maybeCarta(); }, { rootMargin: '-35% 0px -35% 0px' }).observe(carta);
+    pet.addEventListener('click', combo);
+    say.addEventListener('click', combo);
+    $('.pb-x', box).addEventListener('click', function () { shut = true; try { sessionStorage.setItem('pinchoFuera', '1'); } catch (er) {} PB.route(); });
+    setInterval(function () { PB.route(); }, 1500);
+  })();
   /* ---------- Pincho en 3D: muñeco vivo (WebGL, trazado de rayos), con gorra y camiseta de Chelibo ---------- */
   var GLSL_P = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -948,26 +1007,30 @@ void main(){
       gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
       var U = {}; ['uRes', 'uT', 'uYaw', 'uPit', 'uBlink', 'uJump', 'uSq', 'uWave', 'uBris', 'uSleep'].forEach(function (n) { U[n] = gl.getUniformLocation(pr, n); });
       cv.className = 'p3d'; cv.setAttribute('aria-hidden', 'true'); btn.appendChild(cv); btn.classList.add('is3d');
+      var host = btn; PB.has3d = true; PB.canvas = cv;
+      PB.place = function (h) { if (!h || h === host) return; host = h; h.appendChild(cv); S.last = 0; loop(); };
+      PB.poke = function () { S.jv = 3.2; S.bris = 1; S.waveT = now() + 200; loop(); };
       var S = { yaw: 0, pit: 0, ty: 0, tp: 0, jump: 0, jv: 0, sq: 1, sqv: 0, wave: 0, bris: 0, sleep: 0, blinkAt: now() + 2500, waved: false, last: 0, q: 1 };
       var sec = $('#pincho'), vis = false;
-      if (window.IntersectionObserver) new IntersectionObserver(function (es) { vis = es[0].isIntersecting; if (vis) { if (!S.waved) { S.waved = true; S.waveT = now(); } loop(); } }, { threshold: .15 }).observe(sec);
+      PB.wake = function () { loop(); };
+      if (window.IntersectionObserver) new IntersectionObserver(function (es) { PB.secVis = es[0].isIntersecting; if (PB.secVis && !S.waved) { S.waved = true; S.waveT = now(); } PB.route(); loop(); }, { threshold: .15 }).observe(sec);
       /* Mira hacia el dedo o el ratón */
       function look(e) {
-        var r = btn.getBoundingClientRect(), dx = (e.clientX - (r.left + r.width / 2)) / innerWidth, dy = (e.clientY - (r.top + r.height * .4)) / innerHeight;
+        var r = host.getBoundingClientRect(), dx = (e.clientX - (r.left + r.width / 2)) / innerWidth, dy = (e.clientY - (r.top + r.height * .4)) / innerHeight;
         S.ty = clamp(-dx * 1.6, -.6, .6); S.tp = clamp(dy * 1.1, -.35, .35); loop();   /* el giro del shader va al revés que la pantalla */
       }
       addEventListener('pointermove', look, { passive: true });
       addEventListener('pointerdown', look, { passive: true });   /* en el móvil, mira hacia donde tocas */
       btn.addEventListener('click', function () { S.jv = 3.2; S.bris = 1; S.sleep = 0; S.waveT = now() + 250; });
       function size() {
-        var css = btn.clientWidth || 300, pr2 = Math.min(window.devicePixelRatio || 1, 2) * S.q, w = Math.round(css * pr2);
+        var css = host.clientWidth || 300, pr2 = Math.min(window.devicePixelRatio || 1, 2) * S.q, w = Math.round(css * pr2);
         if (cv.width !== w) { cv.width = cv.height = w; gl.viewport(0, 0, w, w); gl.uniform2f(U.uRes, w, w); }
       }
       var raf = 0, slow = 0, frames = 0;
       function loop() { if (!raf) raf = requestAnimationFrame(tick); }
       function tick(t) {
         raf = 0;
-        if (!vis) return;
+        if (!(PB.secVis || PB.on)) return;
         var dt = S.last ? Math.min(.05, (t - S.last) / 1000) : .016, napping = root.classList.contains('sleep');
         if (S.last && t - S.last < 30) { loop(); return; }   /* unos 30 fotogramas por segundo bastan */
         if (S.last && t - S.last > 60 && ++slow > 20 && S.q > .5) { S.q *= .8; slow = 0; }
@@ -984,11 +1047,11 @@ void main(){
         gl.uniform1f(U.uJump, S.jump); gl.uniform1f(U.uSq, S.sq * (1 + .02 * Math.sin(t / 1000 * 2.2))); gl.uniform1f(U.uWave, wave);
         gl.uniform1f(U.uBris, S.bris); gl.uniform1f(U.uSleep, S.sleep);
         gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLES, 0, 3);
-        btn.classList.toggle('zz', S.sleep > .6);
+        host.classList.toggle('zz', S.sleep > .6);
         /* Dormido y quieto: un fotograma cada medio segundo (respira despacio) */
         if (napping && S.sleep > .98 && !S.jump && Math.abs(S.sq - 1) < .002) setTimeout(loop, 500); else loop();
       }
-      addEventListener('scroll', function () { if (vis) loop(); }, { passive: true });
+      addEventListener('scroll', function () { loop(); }, { passive: true });
       document.addEventListener('pointerdown', loop, { passive: true });
       loop();
     }
