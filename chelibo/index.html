@@ -178,7 +178,7 @@
   .head p { margin: 0; color: var(--mute); max-width: 26em; font-size: 15px; }
   h2 { font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: clamp(44px, 9vw, 104px); line-height: .95; margin: 0; letter-spacing: .01em; text-wrap: balance; }
   h2.live { will-change: transform; }
-  h2 .w { display: inline-block; overflow: hidden; vertical-align: top; white-space: nowrap; padding: .16em 0 .08em; margin: -.16em 0 -.08em; }
+  h2 .w { display: inline-block; overflow: hidden; vertical-align: top; white-space: nowrap; padding: .34em 0 .1em; margin: -.34em 0 -.1em; }   /* hueco arriba para las tildes de las mayúsculas (Ó, Í) */
   h2 .c { display: inline-block; transform: translateY(112%); transition: transform .9s var(--ease) calc(var(--i) * 32ms); }
   h2.in .c { transform: none; }
 
@@ -251,27 +251,33 @@
   .days li.today .d::after { content: "Hoy"; margin-left: 12px; font-family: var(--body); font-size: 11px; font-weight: 600; letter-spacing: .18em; padding: 3px 9px; border-radius: 99px; background: var(--gold); color: var(--ink); vertical-align: middle; }
 
   /* ---------- Contacto ---------- */
-  .contact { position: relative; overflow: hidden; isolation: isolate; background-color: var(--gold); color: var(--ink);
+  /* Escríbenos: dorado sobre negro, con un brillo dorado muy tenue que recorre el fondo */
+  .contact { position: relative; overflow: hidden; isolation: isolate; background-color: #0d0b08; color: var(--fg);
+    border-top: 1px solid rgba(217,178,90,.28); border-bottom: 1px solid rgba(217,178,90,.28);
     padding: clamp(56px, 9vw, 120px) max(16px, env(safe-area-inset-right, 0px)) clamp(56px, 9vw, 120px) max(16px, env(safe-area-inset-left, 0px)); }
   .contact::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 200%; z-index: -1; pointer-events: none;
-    background: linear-gradient(90deg, #b88b33 0%, #f1d789 12.5%, #d9b25a 25%, #f8e8ae 37.5%, #b88b33 50%, #f1d789 62.5%, #d9b25a 75%, #f8e8ae 87.5%, #b88b33 100%);
+    background: linear-gradient(90deg, rgba(217,178,90,0) 0%, rgba(217,178,90,.07) 12.5%, rgba(217,178,90,0) 25%, rgba(246,226,160,.05) 37.5%, rgba(217,178,90,0) 50%, rgba(217,178,90,.07) 62.5%, rgba(217,178,90,0) 75%, rgba(246,226,160,.05) 87.5%, rgba(217,178,90,0) 100%);
     animation: sweep 18s linear infinite; }
   @keyframes sweep { to { transform: translate3d(-50%, 0, 0); } }
   .contact:not(.live)::before, .lite .contact::before, .sleep .contact::before, .sleep .cue i { animation-play-state: paused; }
   .contact .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px clamp(24px, 6vw, 80px); align-items: start; }
-  .contact h2 { grid-column: 1 / -1; font-size: clamp(52px, 13vw, 176px); }
+  .contact h2 { grid-column: 1 / -1; font-size: clamp(52px, 13vw, 176px); color: var(--gold); }
+  @supports (-webkit-background-clip: text) { .contact h2 .c { background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+    padding-top: .3em; margin-top: -.3em; } }   /* el degradado cubre también la tilde */
+  .contact .c-lead { color: var(--mute); }
+  .phone .lbl { color: var(--gold); }
   .contact .c-lead { margin: 0; font-size: 18px; max-width: 24em; }
-  .phone { display: grid; gap: 6px; padding-bottom: 24px; margin-bottom: 24px; border-bottom: 1.5px solid rgba(10,9,7,.22); }
+  .phone { display: grid; gap: 6px; padding-bottom: 24px; margin-bottom: 24px; border-bottom: 1.5px solid rgba(217,178,90,.25); }
   .phone .lbl { font-size: 12px; font-weight: 600; letter-spacing: .24em; text-transform: uppercase; }
   .phone .num { font-family: var(--display); font-size: clamp(34px, 6vw, 58px); line-height: 1.05; letter-spacing: .02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
   .phone.pending .num { font: 500 18px/1.4 var(--body); letter-spacing: 0; opacity: .7; -webkit-user-select: none; user-select: none; }
   .phone .acts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
   .phone.pending .acts { display: none; }
   .socials { display: flex; flex-wrap: wrap; gap: 10px; }
-  .contact .btn { background-color: var(--ink); color: var(--gold-hi); border-color: var(--ink); }
-  .contact .btn:hover { background-color: transparent; color: var(--ink); }
-  .contact .btn.ghost { background-color: transparent; color: var(--ink); }
-  .contact .btn.ghost:hover { background-color: var(--ink); color: var(--gold-hi); }
+  .contact .btn { background: var(--gold-grad); background-size: 200% 100%; color: var(--ink); border-color: transparent; }
+  .contact .btn:hover { background-position: 100% 0; }
+  .contact .btn.ghost { background: transparent; color: var(--gold); border-color: var(--gold); }
+  .contact .btn.ghost:hover { background-color: var(--gold); color: var(--ink); }
   .contact .btn em { background: rgba(217,178,90,.2); color: var(--gold); }
 
   /* ---------- Pie ---------- */
