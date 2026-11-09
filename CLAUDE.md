@@ -67,6 +67,15 @@
   resolución, y el regulador `QL` también se la baja. Sin WebGL por hardware (o si ni así llega) se usa el gorro SVG
   plano (`.chat`), que sigue la cara del sello con una matriz CSS.
   Evitar capas animadas grandes (p. ej. lienzos del tamaño de la portada con opacidad animada): encarecen mucho la composición.
+  Rendimiento del tema (el usuario notó tirones): la nieve, las luces, las estrellas y los montoncitos van a 30 pasos por
+  segundo y sincronizados (`steps()`, duraciones y retrasos múltiplos de 1/30 s; el vaivén y la acumulación tienen la curva
+  en fotogramas clave). Así el navegador recompone la pantalla 30 veces por segundo en vez de 60 (o 120). Medido en el
+  navegador de la nube: en reposo, de unos 380 a 240 ms de procesador por segundo (sin adornos es 0). Si se añade otra
+  animación continua al tema, que siga la misma regla o vuelve a 60 imágenes por segundo. El gorro 3D se compila en
+  segundo plano al empezar la intro (`prepHat`), se pinta a menos resolución mientras el sello se mueve (`setLo`) y sus
+  sombras usan 5 muestras.
+- Reposo: a los 12 s sin tocar nada se pone la clase `sleep` (pausa animaciones de CSS) con un temporizador en `kick()`,
+  aunque el bucle de animación ya se haya parado.
 - En móvil la portada va centrada (sello, textos y botones).
 - Sello interactivo (sección 9 del script): al terminar la entrada se puede arrastrar (inercia y se asienta de cara
   con un muelle), tocar/clic = lanzamiento como una moneda, teclado (Enter y flechas). En móvil, deslizar en vertical

@@ -289,15 +289,18 @@
   /* ---------- Tema de Navidad: nieve continua, guirnaldas, nieve acumulada en la galería y detalles ---------- */
   .snow { position: fixed; inset: 0; z-index: 120; pointer-events: none; overflow: hidden; }
   /* Dos láminas de nieve (fondo y primer plano) pintadas una vez; cada una cae en bucle y se mece: 4 animaciones en total */
-  .snow .sl { position: absolute; left: -32px; right: -32px; top: 0; height: 100%; animation: snowsway var(--sd) ease-in-out infinite alternate; }
-  .snow canvas { position: absolute; left: 0; top: 0; width: 100%; height: 200%; animation: snowfall var(--d) linear infinite; }
+  /* Rendimiento: la nieve, las luces, las estrellas y los montoncitos de nieve van a 30 pasos por segundo y todos a la vez
+     (duraciones y retrasos múltiplos de 1/30 s). Entre paso y paso no cambia nada, así que el navegador no tiene que
+     recomponer la pantalla: la mitad de imágenes a 60 Hz y la cuarta parte a 120 Hz, con el mismo aspecto */
+  .snow .sl { position: absolute; left: -32px; right: -32px; top: 0; height: 100%; animation: snowsway var(--sd) steps(var(--sn)) infinite alternate; }
+  .snow canvas { position: absolute; left: 0; top: 0; width: 100%; height: 200%; animation: snowfall var(--d) steps(var(--fn)) infinite; }
   @keyframes snowfall { from { transform: translate3d(0, -50%, 0); } to { transform: translate3d(0, 0, 0); } }
-  @keyframes snowsway { from { transform: translate3d(calc(var(--sw) * -1), 0, 0); } to { transform: translate3d(var(--sw), 0, 0); } }
+  @keyframes snowsway { 0% { transform: translate3d(calc(var(--sw) * -1.000), 0, 0); } 25% { transform: translate3d(calc(var(--sw) * -0.707), 0, 0); } 50% { transform: translate3d(calc(var(--sw) * -0.000), 0, 0); } 75% { transform: translate3d(calc(var(--sw) * 0.707), 0, 0); } 100% { transform: translate3d(calc(var(--sw) * 1.000), 0, 0); } }
   .garland { display: none; position: absolute; left: 0; right: 0; height: 64px; pointer-events: none; z-index: 6; }
   .tema-navidad .garland { display: block; }
   .garland canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .garland .ga { animation: twinkle 1.7s ease-in-out infinite alternate; }
-  .garland .gb { animation: twinkle 1.7s ease-in-out -.85s infinite alternate; }
+  .garland .ga { animation: twinkle 1.6s steps(48) infinite alternate; }
+  .garland .gb { animation: twinkle 1.6s steps(48) -.8s infinite alternate; }
   @keyframes twinkle { from { opacity: .22; } to { opacity: 1; } }
   .g-hero { top: calc(60px + env(safe-area-inset-top, 0px)); }
   .g-gal { top: 6px; }
@@ -306,8 +309,8 @@
   .tema-navidad .hero { padding-top: calc(clamp(96px, 13vw, 150px) + 40px); }
   .tema-navidad .contact { padding-top: calc(clamp(56px, 9vw, 120px) + 46px); }
   .cap { display: none; position: absolute; left: -4%; width: 108%; top: -33px; height: 45px; pointer-events: none; z-index: 3; transform-origin: 50% 73%; transform: scaleY(.04); }
-  .tema-navidad .cap { display: block; animation: accum 42s cubic-bezier(.25, .7, .35, 1) var(--cd, 0s) forwards; }
-  @keyframes accum { to { transform: scaleY(1); } }
+  .tema-navidad .cap { display: block; animation: accum 42s steps(126) var(--cd, 0s) forwards; }
+  @keyframes accum { 0% { transform: scaleY(0.040); } 10% { transform: scaleY(0.305); } 20% { transform: scaleY(0.537); } 30% { transform: scaleY(0.709); } 40% { transform: scaleY(0.823); } 50% { transform: scaleY(0.896); } 60% { transform: scaleY(0.943); } 70% { transform: scaleY(0.972); } 80% { transform: scaleY(0.989); } 90% { transform: scaleY(0.997); } 100% { transform: scaleY(1.000); } }
   .cap svg { display: block; width: 100%; height: 100%; overflow: visible; }
   .cap .sh { fill: rgba(0,0,0,.32); }
   .cap .sn { fill: url(#snowg); }
@@ -331,7 +334,7 @@
   .holly { position: absolute; left: -4px; top: -24px; width: 54px; height: 34px; transform: rotate(-14deg); pointer-events: none; }
   .stars { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
   /* Estrellas pequeñas sueltas: cada una ocupa unos píxeles, así recomponerlas no cuesta nada */
-  .star { position: absolute; width: var(--z); height: var(--z); opacity: .15; animation: star 3.2s ease-in-out var(--dl) infinite;
+  .star { position: absolute; width: var(--z); height: var(--z); opacity: .15; animation: star 3.2s steps(48) var(--dl) infinite;
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 3 Q10 10 17 10 Q10 10 10 17 Q10 10 3 10 Q10 10 10 3Z' fill='%23e8c56a'/%3E%3C/svg%3E") center / 62% no-repeat,
       radial-gradient(circle, rgba(246,226,160,.42), rgba(217,178,90,0) 66%); }
   @keyframes star { 0%, 100% { opacity: .15; transform: scale(.55); } 50% { opacity: .95; transform: scale(1); } }
@@ -734,7 +737,7 @@ var CHELIBO = {
   var temaName = hashTema ? hashTema[1] : VER.tema;
   var garlands = [], snowEl = null, snowW = 0, heroHat = null;
   /* Capas de nieve: [densidad por píxel, tamaño mín-máx, opacidad, segundos en cruzar la pantalla, vaivén] */
-  var SNOW = [{ k: 1 / 6500, s: [1.4, 4.4], o: [.35, .8], d: 21, sw: 12, sd: 4.8 }, { k: 1 / 42000, s: [5.5, 9.5], o: [.3, .55], d: 11, sw: 26, sd: 3.3 }];
+  var SNOW = [{ k: 1 / 6500, s: [1.4, 4.4], o: [.35, .8], d: 21, sw: 12, sd: 4.8 }, { k: 1 / 42000, s: [5.5, 9.5], o: [.3, .55], d: 11, sw: 26, sd: 3.2 }];
   function drawSnow() {
     if (!snowEl || innerWidth === snowW) return;
     snowW = innerWidth;
@@ -840,8 +843,8 @@ var CHELIBO = {
       snowEl.className = 'snow'; snowEl.setAttribute('aria-hidden', 'true');
       SNOW.forEach(function (L) {
         var sl = document.createElement('div'); sl.className = 'sl';
-        sl.style.setProperty('--sd', L.sd + 's'); sl.style.setProperty('--sw', L.sw + 'px');
-        var cv = document.createElement('canvas'); cv.style.setProperty('--d', L.d + 's');
+        sl.style.setProperty('--sd', L.sd + 's'); sl.style.setProperty('--sw', L.sw + 'px'); sl.style.setProperty('--sn', Math.round(L.sd * 7.5));
+        var cv = document.createElement('canvas'); cv.style.setProperty('--d', L.d + 's'); cv.style.setProperty('--fn', Math.round(L.d * 30));
         cv.style.animationDelay = '-' + (r() * L.d).toFixed(1) + 's'; sl.style.animationDelay = '-' + (r() * L.sd).toFixed(1) + 's';
         sl.appendChild(cv); snowEl.appendChild(sl); L.cv = cv;
       });
@@ -1803,6 +1806,7 @@ void main(){
         prepare(im, function () {
           if (done) return;
           intro.classList.add('armed');
+          if (heroHat) prepHat();   /* el gorro 3D de la portada se va preparando durante la intro */
           t0 = now(); requestAnimationFrame(tick);
         });
       } catch (er) { if (forceGL && window.console) console.error(er); finish(); }
@@ -1875,7 +1879,13 @@ void main(){
   var y0 = curY(), vel = 0, tx = 0, ty = 0, px = 0, py = 0, lastDraw = [9, 9, 9], lastFast = false, asleep = false;
   var SLEEP = 12000;
   var headHidden = false, headSolid = null, anchor = y0, fabAway = null;
-  function kick() { lastAct = now(); if (!running) { running = true; lastT = 0; requestAnimationFrame(frame); } }
+  var sleepT = 0;
+  function kick() {
+    lastAct = now(); if (!running) { running = true; lastT = 0; requestAnimationFrame(frame); }
+    /* El bucle puede pararse antes de los 12 s: este temporizador pone igualmente la página en reposo (pausa animaciones) */
+    clearTimeout(sleepT);
+    sleepT = setTimeout(function () { if (!introOn && now() - lastAct >= SLEEP - 50 && !asleep) { asleep = true; root.classList.add('sleep'); } }, SLEEP + 60);
+  }
 
   /* ---------- 9. Sello interactivo: arrastrar con inercia, lanzar con un toque, asentarse de cara ---------- */
   var U = { y: 0, x: 0, vy: 0, vx: 0, ty: 0, tx: 0, gy: 0, gx: 0, mode: 'rest', toss: false, hop: 0, hopV: 0 };
@@ -1996,9 +2006,10 @@ float coinHit(vec3 ro, vec3 rd){
   if (a > 1e-6 && h > 0.) { float ts = (-b - sqrt(h)) / a; vec3 ps = ro + rd * ts; if (ts > 0. && abs(ps.z) < HZ) t = min(t, ts); }
   return t;
 }
+/* Sombra suave con 5 muestras a distancias crecientes (antes, hasta 16 pasos) */
 float shadowH(vec3 ro, vec3 l){
-  float res = 1., t = .004;
-  for (int i = 0; i < 16; i++) { float h = mapD(ro + l * t); res = min(res, 9. * h / t); t += clamp(h, .008, .08); if (res < .01 || t > 1.) break; }
+  float res = 1.;
+  for (int i = 1; i <= 5; i++) { float t = .03 * float(i * i) + .01; res = min(res, 7. * mapD(ro + l * t) / t); }
   return clamp(res, 0., 1.);
 }
 vec3 nrmH(vec3 p){ vec2 k = vec2(1., -1.) * .0016;
@@ -2049,7 +2060,7 @@ void main(){
     if (abs(abs(pc.z) - HZ) < .002) {
       vec2 bs = sph(pc, l, uHb, uRb);
       if (bs.y > 0. && bs.x < bs.y) {
-        float s = shadowH(pc + l * max(bs.x, .004), l), e = .5 - max(abs(fq.x), abs(fq.y));   /* se desvanece antes del borde del lienzo */
+        float s = shadowH(pc, l), e = .5 - max(abs(fq.x), abs(fq.y));   /* se desvanece antes del borde del lienzo */
         gl_FragColor = vec4(0., 0., 0., (1. - s) * .4 * smoothstep(0., .12, e)); return;
       }
     }
@@ -2087,21 +2098,34 @@ void main(){
     var cx = k[1] * z - k[2] * y, cy = k[2] * x - k[0] * z, cz = k[0] * y - k[1] * x;
     return [o[0] + x * c + cx * s + k[0] * d * (1 - c), o[1] + y * c + cy * s + k[1] * d * (1 - c), o[2] + z * c + cz * s + k[2] * d * (1 - c)];
   }
-  function hatGL() {
+  /* Prepara el gorro 3D: compila el shader sin bloquear la página si el navegador sabe hacerlo en segundo plano, y avisa
+     con cb(gorro) o cb(null). Se lanza al empezar la intro, para que esté listo cuando el sello llegue a la portada */
+  function prepHat() {
+    var H = heroHat;
+    if (!H || H.prep) return;
+    H.prep = true;
+    try { hatGL(function (o) { H.g3 = o; if (o) kick(); }); } catch (er) { H.g3 = null; if (window.console) console.warn(er); }
+  }
+  function hatGL(cb) {
     var cv = document.createElement('canvas'), gl = null;
     cv.className = 'chat3'; cv.setAttribute('aria-hidden', 'true');
     try { gl = cv.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false }); } catch (er) { gl = null; }
-    if (!gl) return null;
+    if (!gl) { cb(null); return; }
     var dbg = gl.getExtension('WEBGL_debug_renderer_info'), ren = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
     var hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
     function lose() { var lx = gl.getExtension('WEBGL_lose_context'); if (lx) lx.loseContext(); }
-    if ((/swiftshader|llvmpipe|software|basic render/i.test(ren) && !/[?&]gl=1\b/.test(location.search)) || !hp || hp.precision < 20) { lose(); return null; }
-    function shd(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
-    var pr = gl.createProgram();
-    gl.attachShader(pr, shd(gl.VERTEX_SHADER, 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'));
-    gl.attachShader(pr, shd(gl.FRAGMENT_SHADER, GLSL_H));
+    if ((/swiftshader|llvmpipe|software|basic render/i.test(ren) && !/[?&]gl=1\b/.test(location.search)) || !hp || hp.precision < 20) { lose(); cb(null); return; }
+    var par = gl.getExtension('KHR_parallel_shader_compile'), pr = gl.createProgram(), tC = now();
+    function shd(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); gl.attachShader(pr, s); return s; }
+    shd(gl.VERTEX_SHADER, 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}');
+    var fsh = shd(gl.FRAGMENT_SHADER, GLSL_H);
     gl.bindAttribLocation(pr, 0, 'a'); gl.linkProgram(pr);
-    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { lose(); throw new Error(gl.getProgramInfoLog(pr)); }
+    (function wait() {
+      if (par && !gl.getProgramParameter(pr, par.COMPLETION_STATUS_KHR)) { if (now() - tC > 8000) { lose(); cb(null); } else setTimeout(wait, 60); return; }
+      if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { if (window.console) console.warn(gl.getShaderInfoLog(fsh) || gl.getProgramInfoLog(pr)); lose(); cb(null); return; }
+      cb(setup());
+    })();
+    function setup() {
     gl.useProgram(pr);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
@@ -2117,7 +2141,7 @@ void main(){
     cv.addEventListener('webglcontextlost', function (ev) { ev.preventDefault(); self.lost = true; });
     /* Tamaño del lienzo (cubre el gorro en cualquier postura) y su sitio: centrado en el sello dentro de .chat3w */
     self.size = function (wcss) {
-      var css = Math.round(2 * HG.rb * wcss), w = Math.max(16, Math.round(css * Math.min(window.devicePixelRatio || 1, 2) * .75 * self.q)), fw = wcss * 1.06;
+      var css = Math.round(2 * HG.rb * wcss), w = Math.max(16, Math.round(css * Math.min(window.devicePixelRatio || 1, 2) * .75 * self.q * (self.lo ? .62 : 1))), fw = wcss * 1.06;
       if (css === self.css && cv.width === w) return;
       self.css = css; cv.width = cv.height = w; gl.viewport(0, 0, w, w);
       cv.style.width = cv.style.height = css + 'px';
@@ -2142,19 +2166,24 @@ void main(){
       var t = now(); self.draw(m, g); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, self.px1); return now() - t;
     };
     self.lose = lose;
+    /* Mientras el sello se mueve, el gorro se pinta a menos resolución (no se nota en movimiento y cuesta un tercio) */
+    self.lo = false;
+    self.setLo = function (v) { if (v === self.lo) return; self.lo = v; self.css = 0; };
+    /* Primera pintura de calentamiento con el lienzo aún fuera de la página: el driver prepara el shader sin esperar */
+    gl.viewport(0, 0, 16, 16); gl.uniform2f(U3.uRes, 16, 16);
+    self.draw({ cy: 1, sy: 0, cx: 1, sx: 0, s: 1 }, { c0: HG.c0, sp: HG.sp, pp: HG.pp, hb: HG.hb });
     return self;
+    }
   }
   function hatStep(ryd, rxd, ht, op, s) {
     var H = heroHat, m = hero.m;
     if (!m || !s) return;
-    /* La primera vez se intenta el gorro 3D; si no hay WebGL por hardware, se queda el SVG plano */
-    if (H.g3 === undefined) {
-      H.g3 = null;
-      try { H.g3 = hatGL(); } catch (er) { H.g3 = null; if (window.console) console.warn(er); }
-      if (H.g3) {
-        H.box.style.display = 'none'; H.wrap = document.createElement('div'); H.wrap.className = 'chat3w';
-        H.wrap.appendChild(H.g3.cv); H.box.parentNode.appendChild(H.wrap); H.tested = false; H.ww = 0;
-      }
+    /* El gorro 3D se prepara en segundo plano (si no se lanzó ya con la intro); hasta que esté listo, se ve el SVG plano */
+    if (!H.prep) prepHat();
+    if (H.g3 && !H.on3) {
+      H.on3 = true; H.op = -1;
+      H.box.style.display = 'none'; H.wrap = document.createElement('div'); H.wrap.className = 'chat3w';
+      H.wrap.appendChild(H.g3.cv); H.box.parentNode.appendChild(H.wrap); H.tested = false; H.ww = 0;
     }
     var seen = H.landed ? op : op * clamp((H.dy + 1.5) / .35, 0, 1);
     if (seen > .998) seen = 1;
@@ -2192,7 +2221,13 @@ void main(){
       var tip = [up[1], up[2], up[3]].map(function (q) { return rotAbout(rotAbout(q, up[0], Z, A * .65), up[0], HG.bd, F * .65); });
       var dy = H.dy * .45, mv = function (q) { return [q[0], q[1] + dy, q[2]]; };
       var g = { c0: mv(HG.c0), sp: [mv(sp[0]), mv(up[0]), mv(tip[0]), mv(tip[1])], pp: mv(tip[2]), hb: mv(HG.hb) };
-      var key = [m.cy, m.sy, m.cx, m.sx, m.s, H.a, H.f, H.dy].map(function (v) { return v.toFixed(4); }).join() + ',' + H.g3.cv.width;
+      var pose = [m.cy, m.sy, m.cx, m.sx, m.s, H.a, H.f, H.dy].map(function (v) { return v.toFixed(4); }).join();
+      /* En movimiento, baja resolución; cuatro fotogramas quieto y se repinta nítido */
+      if (pose !== H.pose) { H.pose = pose; H.still = 0; if (H.tested) H.g3.setLo(true); }
+      else if (H.g3.lo && ++H.still >= 4) H.g3.setLo(false);
+      H.g3.size(Wc);
+      if (H.g3.lo) H.busy = true;
+      var key = pose + ',' + H.g3.cv.width;
       if (key !== H.g3.last) {
         H.g3.last = key;
         var hc;
