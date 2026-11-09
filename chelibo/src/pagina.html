@@ -374,7 +374,14 @@
   /* Pincho, la mascota, y la C de púas */
   .p-hero { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(24px, 5vw, 64px); align-items: center; margin-top: 8px; }
   .p-pet { display: block; width: 100%; max-width: 420px; justify-self: center; padding: 0; border: 0; background: radial-gradient(circle at 50% 60%, rgba(217,178,90,.18), rgba(217,178,90,0) 62%); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .p-pet { position: relative; aspect-ratio: 1; }
   .p-pet svg { display: block; width: 100%; height: auto; }
+  /* Pincho en 3D: el lienzo ocupa el sitio del dibujo, que queda de reserva */
+  .p-pet .p3d { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .p-pet.is3d > svg { visibility: hidden; }
+  .p-pet::after { content: "z z z"; position: absolute; right: 14%; top: 10%; font-family: var(--display); font-size: 26px; letter-spacing: .2em; color: var(--gold);
+    opacity: 0; transform: translateY(8px); transition: opacity .6s, transform .6s; pointer-events: none; }
+  .p-pet.zz::after { opacity: .8; transform: none; }
   .p-pet .quills, .p-pet .q { transform-box: view-box; transform-origin: 205px 232px; transition: transform .5s cubic-bezier(.3,1.6,.5,1); }
   .p-pet:hover .quills, .p-pet.erizo .quills { transform: scale(1.08); }
   .p-pet.erizo { animation: pboing .6s cubic-bezier(.3,1.6,.5,1); }
@@ -785,6 +792,181 @@ var CHELIBO = {
   (function () {
     var b = $('#pinchoBtn'); if (!b) return;
     b.addEventListener('click', function () { b.classList.remove('erizo'); void b.offsetWidth; b.classList.add('erizo'); setTimeout(function () { b.classList.remove('erizo'); }, 700); });
+  })();
+  /* ---------- Pincho en 3D: muñeco vivo (WebGL, trazado de rayos), con gorra y camiseta de Chelibo ---------- */
+  var GLSL_P = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform vec2 uRes; uniform float uT, uYaw, uPit, uBlink, uJump, uSq, uWave, uBris, uSleep;
+float smin(float a, float b, float k){ float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
+float sdEll(vec3 p, vec3 r){ float k0 = length(p / r), k1 = length(p / (r * r)); return k0 * (k0 - 1.) / k1; }
+float sdCap(vec3 p, vec3 a, vec3 b, float r){ vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.); return length(pa - ba * h) - r; }
+mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+/* materiales: 1 cuerpo marrón, 2 cara crema, 3 púas, 4 camiseta, 5 gorra, 6 ojos/nariz, 7 suela */
+vec2 U(vec2 a, vec2 b){ return a.x < b.x ? a : b; }
+vec3 body(vec3 p){ /* respiración y salto */ p.y -= uJump; p.y /= uSq; p.xz *= mix(1., 1. / sqrt(uSq), .8); return p; }
+vec2 map(vec3 q){
+  vec3 p = body(q);
+  vec3 b = p - vec3(0., .95, 0.);
+  b.xz = rot(uYaw) * b.xz; b.yz = rot(uPit) * b.yz;      /* mira hacia el puntero */
+  float br = 1. + .015 * sin(uT * 2.2);
+  float dB = sdEll(b * vec3(1., 1. / br, 1.), vec3(.78, .84, .72));
+  vec2 r = vec2(dB, 1.);
+  /* camiseta: el cuerpo de la cintura para abajo, un poco hinchado */
+  float shirt = max(sdEll(b, vec3(.8, .86, .74)), b.y + .2);
+  r = U(r, vec2(shirt, 4.));
+  /* púas: en la espalda y arriba, conos que salen del cuerpo */
+  vec3 s = b; float az = atan(s.x, -s.z), el = atan(s.y, length(s.xz));
+  float n1 = 18., n2 = 10.;
+  float ca = (floor(az / 3.1416 * n1 * .5) + .5) / (n1 * .5) * 3.1416, ce = (floor(el / 1.5708 * n2 * .5 + .5)) / (n2 * .5) * 1.5708;
+  float qd = 1e3;
+  if (dot(b, vec3(0., .4, -1.)) > -.55) {
+    for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
+      float a = ca + float(i) * 3.1416 / (n1 * .5) + mod(float(j), 2.) * .13, e = ce + float(j) * 1.5708 / (n2 * .5);
+      vec3 dir = vec3(sin(a) * cos(e), sin(e), -cos(a) * cos(e));
+      if (dir.z > .05 + .55 * max(dir.y, 0.) || dir.y < -.35) continue;   /* espalda, lados y coronilla, no en la cara */
+      vec3 base = dir * vec3(.7, .76, .64), tip = dir * vec3(1.12, 1.16, 1.06) * (1. + .2 * uBris) + dir * .14;
+      qd = min(qd, sdCap(s, base, tip, .055) + .045 * clamp(dot(s - base, dir) / length(tip - base), 0., 1.));
+    }
+  }
+  r = U(r, vec2(qd, 3.));
+  /* cara */
+  float face = sdEll(b - vec3(0., .14, .44), vec3(.5, .44, .34));
+  r = U(r, vec2(smin(face, dB + .02, .05), 2.));
+  float snout = sdEll(b - vec3(0., .05, .72), vec3(.2, .15, .17));
+  r = U(r, vec2(snout, 2.));
+  r = U(r, vec2(length(b - vec3(0., .1, .88)) - .065, 6.));
+  /* ojos (se cierran al parpadear o dormir) */
+  float lid = max(uBlink, uSleep);
+  vec3 e1 = b - vec3(.22, .3, .66), e2 = b - vec3(-.22, .3, .66);
+  float ey = .095 * (1. - .92 * lid);
+  r = U(r, vec2(min(sdEll(e1, vec3(.085, ey, .06)), sdEll(e2, vec3(.085, ey, .06))), 6.));
+  /* orejas */
+  r = U(r, vec2(min(length(b - vec3(.48, .62, .2)) - .11, length(b - vec3(-.48, .62, .2)) - .11), 1.));
+  /* gorra: copa y visera */
+  vec3 c = b - vec3(0., .62, .04);
+  float cap = max(sdEll(c, vec3(.6, .46, .58)), -c.y);
+  float brim = sdEll(c - vec3(0., .03, .5), vec3(.46, .04, .34));
+  r = U(r, vec2(min(cap, brim), 5.));
+  r = U(r, vec2(length(c - vec3(0., .46, 0.)) - .05, 3.));
+  /* brazos: el derecho saluda */
+  vec3 sh = vec3(-.62, .02, .22), hand = sh + vec3(-.2 - .1 * uWave, -.32 + .62 * uWave, .14);
+  r = U(r, vec2(min(sdCap(b, vec3(.62, .02, .22), vec3(.78, -.32, .34), .1), sdCap(b, sh, hand, .1)), 4.));
+  /* pies */
+  vec3 f = p;
+  r = U(r, vec2(min(sdEll(f - vec3(.3, .09, .25), vec3(.2, .1, .26)), sdEll(f - vec3(-.3, .09, .25), vec3(.2, .1, .26))), 7.));
+  return r;
+}
+vec3 nrm(vec3 p){ vec2 k = vec2(1., -1.) * .0015;
+  return normalize(k.xyy * map(p + k.xyy).x + k.yyx * map(p + k.yyx).x + k.yxy * map(p + k.yxy).x + k.xxx * map(p + k.xxx).x); }
+float shd(vec3 ro, vec3 rd){ float res = 1., t = .02; for (int i = 0; i < 24; i++) { float h = map(ro + rd * t).x; res = min(res, 8. * h / t); t += clamp(h, .02, .2); if (res < .01 || t > 3.) break; } return clamp(res, 0., 1.); }
+float ao(vec3 p, vec3 n){ float o = 0., s = 1.; for (int i = 1; i <= 4; i++) { float h = .03 * float(i); o += (h - map(p + n * h).x) * s; s *= .7; } return clamp(1. - 2.2 * o, 0., 1.); }
+/* La C de púas dibujada en un plano (para la gorra y la camiseta) */
+float cMark(vec2 u){
+  float r = length(u), a = atan(u.y, u.x);
+  float ring = abs(r - .55) - .14;
+  float gap = abs(a) < .75 ? 1. : 0.;
+  float sp = (r > .6 && r < 1. && abs(fract((a + 3.1416) / .55) - .5) < .5 - (r - .6) * 1.1) ? -1. : 1.;
+  return (ring < 0. && gap < .5) || (sp < 0. && abs(a) > .9) ? 1. : 0.;
+}
+vec3 shade(vec3 p, vec3 rd, float m){
+  vec3 n = nrm(p), l = normalize(vec3(-.5, .8, .7)), v = -rd;
+  vec3 pb = body(p) - vec3(0., .95, 0.); pb.xz = rot(uYaw) * pb.xz; pb.yz = rot(uPit) * pb.yz;
+  vec3 alb = vec3(.23, .14, .08); float sp = .15, rough = 30.;
+  if (m < 1.5) alb = vec3(.25, .15, .085);
+  else if (m < 2.5) alb = vec3(.93, .82, .62);
+  else if (m < 3.5) { float t = clamp(length(pb) - .7, 0., .45) / .45; alb = mix(vec3(.3, .17, .03), vec3(.92, .62, .14), t * t); sp = .9; rough = 80.; }
+  else if (m < 4.5) { alb = vec3(.035, .032, .03); if (pb.z > .4 && cMark((pb.xy - vec2(0., -.42)) / .15) > .5) { alb = vec3(.85, .66, .28); sp = .8; } }
+  else if (m < 5.5) { alb = vec3(.03, .028, .026); vec3 c = pb - vec3(0., .62, .04); if (c.z > .3 && c.y > .08 && cMark((c.xy - vec2(0., .24)) / .12) > .5) { alb = vec3(.85, .66, .28); sp = .8; } }
+  else if (m < 6.5) { alb = vec3(.02); sp = 1.; rough = 120.; }
+  else alb = vec3(.12, .08, .05);
+  float sh = shd(p + n * .01, l), o = ao(p, n);
+  float d = clamp(dot(n, l) * .5 + .5, 0., 1.);
+  vec3 col = alb * (vec3(1., .95, .88) * 1.1 * d * mix(.4, 1., sh) + vec3(.16, .14, .12) * o);
+  col += vec3(1., .86, .6) * pow(clamp(dot(reflect(-l, n), v), 0., 1.), rough) * sp * sh;
+  col += vec3(.85, .62, .3) * pow(1. - clamp(dot(n, v), 0., 1.), 3.) * .35 * o;   /* contraluz dorado */
+  return col;
+}
+void main(){
+  vec2 uv = (gl_FragCoord.xy - .5 * uRes) / uRes.y;
+  vec3 ro = vec3(0., 1.15, 6.4), ta = vec3(0., 1.02, 0.), fw = normalize(ta - ro), rt = normalize(cross(fw, vec3(0., 1., 0.))), up = cross(rt, fw);
+  vec3 rd = normalize(fw * 2.1 + rt * uv.x + up * uv.y);
+  float t = 4.2, m = 0., dm = 1e9, tm = t; bool hit = false;
+  for (int i = 0; i < 90; i++) { vec2 h = map(ro + rd * t); if (h.x < dm) { dm = h.x; tm = t; } if (h.x < .0012 * t) { hit = true; m = h.y; break; } t += h.x * .8; if (t > 9.) break; }
+  float pw = 1.6 / uRes.y * t / 2.1, cov = hit ? 1. : clamp(1. - dm / pw, 0., 1.);
+  if (cov <= 0.) { gl_FragColor = vec4(0.); return; }
+  vec3 p = ro + rd * (hit ? t : tm); if (!hit) m = map(p).y;
+  vec3 col = pow(clamp(shade(p, rd, m), 0., 1.), vec3(1. / 2.2));
+  gl_FragColor = vec4(col * cov, cov);
+}`;
+  (function pinchoLive() {
+    var btn = $('#pinchoBtn'); if (!btn) return;
+    var cv = document.createElement('canvas'), gl = null;
+    try { gl = cv.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false }); } catch (er) { gl = null; }
+    if (!gl) return;
+    var dbg = gl.getExtension('WEBGL_debug_renderer_info'), ren = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+    if (/swiftshader|llvmpipe|software|basic render/i.test(ren) && !/[?&]gl=1\b/.test(location.search)) return;
+    var par = gl.getExtension('KHR_parallel_shader_compile'), pr = gl.createProgram();
+    function sh(t, s) { var o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); gl.attachShader(pr, o); return o; }
+    sh(gl.VERTEX_SHADER, 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'); var fs = sh(gl.FRAGMENT_SHADER, GLSL_P);
+    gl.bindAttribLocation(pr, 0, 'a'); gl.linkProgram(pr);
+    var t0 = now();
+    (function wait() {
+      if (par && !gl.getProgramParameter(pr, par.COMPLETION_STATUS_KHR)) { if (now() - t0 < 8000) setTimeout(wait, 80); return; }
+      if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { if (window.console) console.warn(gl.getShaderInfoLog(fs)); return; }
+      start();
+    })();
+    function start() {
+      gl.useProgram(pr);
+      gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      var U = {}; ['uRes', 'uT', 'uYaw', 'uPit', 'uBlink', 'uJump', 'uSq', 'uWave', 'uBris', 'uSleep'].forEach(function (n) { U[n] = gl.getUniformLocation(pr, n); });
+      cv.className = 'p3d'; cv.setAttribute('aria-hidden', 'true'); btn.appendChild(cv); btn.classList.add('is3d');
+      var S = { yaw: 0, pit: 0, ty: 0, tp: 0, jump: 0, jv: 0, sq: 1, sqv: 0, wave: 0, bris: 0, sleep: 0, blinkAt: now() + 2500, waved: false, last: 0, q: 1 };
+      var sec = $('#pincho'), vis = false;
+      if (window.IntersectionObserver) new IntersectionObserver(function (es) { vis = es[0].isIntersecting; if (vis) { if (!S.waved) { S.waved = true; S.waveT = now(); } loop(); } }, { threshold: .15 }).observe(sec);
+      /* Mira hacia el dedo o el ratón */
+      addEventListener('pointermove', function (e) {
+        var r = btn.getBoundingClientRect(), dx = (e.clientX - (r.left + r.width / 2)) / innerWidth, dy = (e.clientY - (r.top + r.height * .4)) / innerHeight;
+        S.ty = clamp(dx * 1.6, -.6, .6); S.tp = clamp(dy * 1.1, -.35, .35); loop();
+      }, { passive: true });
+      btn.addEventListener('click', function () { S.jv = 3.2; S.bris = 1; S.sleep = 0; S.waveT = now() + 250; });
+      function size() {
+        var css = btn.clientWidth || 300, pr2 = Math.min(window.devicePixelRatio || 1, 2) * S.q, w = Math.round(css * pr2);
+        if (cv.width !== w) { cv.width = cv.height = w; gl.viewport(0, 0, w, w); gl.uniform2f(U.uRes, w, w); }
+      }
+      var raf = 0, slow = 0, frames = 0;
+      function loop() { if (!raf) raf = requestAnimationFrame(tick); }
+      function tick(t) {
+        raf = 0;
+        if (!vis) return;
+        var dt = S.last ? Math.min(.05, (t - S.last) / 1000) : .016, napping = root.classList.contains('sleep');
+        if (S.last && t - S.last < 30) { loop(); return; }   /* unos 30 fotogramas por segundo bastan */
+        if (S.last && t - S.last > 60 && ++slow > 20 && S.q > .5) { S.q *= .8; slow = 0; }
+        S.last = t; frames++;
+        size();
+        S.sleep += ((napping ? 1 : 0) - S.sleep) * Math.min(1, dt * 2);
+        S.yaw += ((napping ? 0 : S.ty) - S.yaw) * Math.min(1, dt * 5); S.pit += ((napping ? .18 : S.tp) - S.pit) * Math.min(1, dt * 5);
+        S.jv -= 9.8 * dt; S.jump = Math.max(0, S.jump + S.jv * dt * .35); if (S.jump === 0) { if (S.jv < -1.5) { S.sqv -= .9; } S.jv = 0; }
+        S.sqv += (-120 * (S.sq - 1) - 9 * S.sqv) * dt; S.sq += S.sqv * dt; S.sq = clamp(S.sq, .82, 1.15);
+        S.bris *= Math.exp(-dt * 2.2);
+        var w = S.waveT ? (now() - S.waveT) / 1000 : 9, wave = w > 0 && w < 1.6 ? Math.sin(w / 1.6 * Math.PI) * (.6 + .4 * Math.sin(w * 14)) : 0;
+        var bl = 0, bt = now() - S.blinkAt; if (bt > 0) { bl = bt < 140 ? Math.sin(bt / 140 * Math.PI) : 0; if (bt > 140) S.blinkAt = now() + 2200 + Math.random() * 3000; }
+        gl.uniform1f(U.uT, t / 1000); gl.uniform1f(U.uYaw, S.yaw); gl.uniform1f(U.uPit, S.pit); gl.uniform1f(U.uBlink, bl);
+        gl.uniform1f(U.uJump, S.jump); gl.uniform1f(U.uSq, S.sq * (1 + .02 * Math.sin(t / 1000 * 2.2))); gl.uniform1f(U.uWave, wave);
+        gl.uniform1f(U.uBris, S.bris); gl.uniform1f(U.uSleep, S.sleep);
+        gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLES, 0, 3);
+        btn.classList.toggle('zz', S.sleep > .6);
+        /* Dormido y quieto: un fotograma cada medio segundo (respira despacio) */
+        if (napping && S.sleep > .98 && !S.jump && Math.abs(S.sq - 1) < .002) setTimeout(loop, 500); else loop();
+      }
+      addEventListener('scroll', function () { if (vis) loop(); }, { passive: true });
+      document.addEventListener('pointerdown', loop, { passive: true });
+      loop();
+    }
   })();
   /* Reseñas: nota media y tarjetas con las reseñas reales que haya en CHELIBO */
   (function () {

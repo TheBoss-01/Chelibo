@@ -42,6 +42,10 @@
   (símbolo SVG `#m-pincho`; al tocarlo eriza las púas y salta, parpadea solo cuando se ve) y "la C de púas", el símbolo
   reconocible de la marca (`#cpua`, la C del nombre hecha con púas). Debajo, merchandising de muestra en SVG (camiseta,
   gorra, taza, pegatina). Las púas y la C se generan con un script de Python (no a mano).
+  Pincho está vivo en 3D (`GLSL_P`, `pinchoLive()`, trazado de rayos en WebGL, el dibujo SVG queda de reserva): lleva la
+  gorra y la camiseta negras con la C de púas dorada, respira, parpadea, sigue con la mirada al ratón o al dedo, saluda
+  al aparecer, al tocarlo salta y eriza las púas, y se duerme ("z z z") cuando la página entra en reposo. Va a unos
+  30 fotogramas por segundo y solo mientras se ve; si va lento baja la resolución.
 - Rendimiento: el sello 3D se dibuja en un `<canvas>` (una sola capa) y solo se redibuja si cambia el giro;
   el flotado, la firma y las cintas son animaciones de GPU. El bucle JS se para cuando no hay nada que mover
   y los efectos de fondo se pausan tras 12 s sin interacción. Con "movimiento reducido" la página es estática.
