@@ -379,6 +379,34 @@
     .menu > div > .ph { grid-column: 1; grid-row: 1 / span 4; aspect-ratio: auto; min-height: 240px; margin: 0; }
     .menu > div > :not(.ph) { grid-column: 2; }
   }
+
+  /* Pincho, la mascota, y la C de púas */
+  .p-hero { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(24px, 5vw, 64px); align-items: center; margin-top: 8px; }
+  .p-pet { display: block; width: 100%; max-width: 420px; justify-self: center; padding: 0; border: 0; background: radial-gradient(circle at 50% 60%, rgba(217,178,90,.18), rgba(217,178,90,0) 62%); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .p-pet svg { display: block; width: 100%; height: auto; }
+  .p-pet .quills, .p-pet .q { transform-box: view-box; transform-origin: 205px 232px; transition: transform .5s cubic-bezier(.3,1.6,.5,1); }
+  .p-pet:hover .quills, .p-pet.erizo .quills { transform: scale(1.08); }
+  .p-pet.erizo { animation: pboing .6s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes pboing { 30% { transform: translateY(-14px) scale(1.03, .97); } 60% { transform: translateY(0) scale(.97, 1.03); } }
+  .p-pet .eyes { transform-box: view-box; transform-origin: 205px 248px; animation: blink 5s steps(150) infinite; }
+  @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.08); } }
+  .pincho:not(.live) .eyes, .sleep .p-pet .eyes, .rm .p-pet .eyes, .rm .p-pet { animation: none; }
+  .p-txt p { margin: 0 0 14px; max-width: 46ch; color: var(--mute); font-size: 17px; }
+  .p-txt p b { color: var(--fg); }
+  .p-mark { display: flex; align-items: center; gap: 18px; margin-top: 18px; padding: 18px 20px; border: 1.5px solid var(--gold); border-radius: 20px; background: #0d0b08; }
+  .p-mark svg { width: 84px; height: 84px; flex: none; fill: var(--gold); }
+  .p-mark b { display: block; font-family: var(--display); font-weight: 400; font-size: 26px; text-transform: uppercase; color: var(--gold); }
+  .p-mark span { color: var(--mute); font-size: 14px; }
+  .merch { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: clamp(28px, 5vw, 48px); }
+  .mc { margin: 0; border: 1px solid var(--line); border-radius: 18px; background: #0f0d0a; overflow: hidden; }
+  .mc-art { aspect-ratio: 1; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #1c1812, #0f0d0a 70%); }
+  .mc-art > svg { width: 78%; height: auto; transition: transform .5s var(--ease); }
+  .mc:hover .mc-art > svg { transform: translateY(-6px) rotate(-3deg); }
+  .mc figcaption { display: grid; gap: 2px; padding: 14px 16px 16px; }
+  .mc figcaption b { font-family: var(--display); font-weight: 400; font-size: 22px; text-transform: uppercase; }
+  .mc figcaption span { color: var(--mute); font-size: 14px; }
+  .m-note { color: var(--mute); margin: 16px 0 0; font-size: 14px; }
+  @media (max-width: 860px) { .p-hero { grid-template-columns: 1fr; } .merch { grid-template-columns: repeat(2, minmax(0, 1fr)); } .p-pet { max-width: 320px; } }
   /* Reseñas de Google: cabecera con la nota y una fila de tarjetas que se desliza en horizontal */
   .resenas { margin-top: clamp(20px, 3vw, 28px); border: 1px solid var(--line); border-radius: 22px; padding: clamp(22px, 4vw, 36px); background: #0f0d0a; }
   .r-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 18px; }
@@ -459,6 +487,26 @@
   <symbol id="i-ig" viewBox="0 0 24 24"><path d="M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077"/></symbol>
   <symbol id="i-wa" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></symbol>
   <symbol id="i-fb" viewBox="0 0 24 24"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></symbol>
+  <symbol id="m-pincho" viewBox="0 0 400 400">
+  <ellipse cx="200" cy="372" rx="120" ry="14" fill="rgba(0,0,0,.35)"/>
+  <g class="quills"><path class="q q0" style="--qa:20.0deg" d="M290.6 213.1 L366.9 177.8 L283.8 195.9 Z" fill="#8a6420"/><path class="q q0" style="--qa:26.4deg" d="M287.8 204.5 L357.2 162.6 L278.9 188.1 Z" fill="#8a6420"/><path class="q q0" style="--qa:32.7deg" d="M283.9 196.2 L352.3 144.9 L273.2 180.8 Z" fill="#8a6420"/><path class="q q0" style="--qa:39.1deg" d="M279.1 188.4 L337.6 132.9 L266.6 174.2 Z" fill="#8a6420"/><path class="q q0" style="--qa:45.5deg" d="M273.4 181.1 L323.7 121.1 L259.2 168.2 Z" fill="#8a6420"/><path class="q q0" style="--qa:51.8deg" d="M266.9 174.4 L313.3 105.3 L251.2 163.1 Z" fill="#8a6420"/><path class="q q0" style="--qa:58.2deg" d="M259.6 168.5 L302.3 87.7 L242.6 158.8 Z" fill="#8a6420"/><path class="q q0" style="--qa:64.5deg" d="M251.6 163.3 L283.4 80.5 L233.6 155.4 Z" fill="#8a6420"/><path class="q q0" style="--qa:70.9deg" d="M243.0 159.0 L264.5 74.0 L224.2 153.0 Z" fill="#8a6420"/><path class="q q0" style="--qa:77.3deg" d="M234.0 155.6 L242.9 77.7 L214.5 151.5 Z" fill="#8a6420"/><path class="q q0" style="--qa:83.6deg" d="M224.6 153.1 L224.7 69.6 L204.8 151.0 Z" fill="#8a6420"/><path class="q q0" style="--qa:90.0deg" d="M215.0 151.6 L205.0 72.9 L195.0 151.6 Z" fill="#8a6420"/><path class="q q0" style="--qa:96.4deg" d="M205.2 151.0 L186.0 75.6 L185.4 153.1 Z" fill="#8a6420"/><path class="q q0" style="--qa:102.7deg" d="M195.5 151.5 L167.6 79.5 L176.0 155.6 Z" fill="#8a6420"/><path class="q q0" style="--qa:109.1deg" d="M185.8 153.0 L148.8 82.6 L167.0 159.0 Z" fill="#8a6420"/><path class="q q0" style="--qa:115.5deg" d="M176.4 155.4 L125.6 78.6 L158.4 163.3 Z" fill="#8a6420"/><path class="q q0" style="--qa:121.8deg" d="M167.4 158.8 L108.6 89.0 L150.4 168.5 Z" fill="#8a6420"/><path class="q q0" style="--qa:128.2deg" d="M158.8 163.1 L92.2 100.0 L143.1 174.4 Z" fill="#8a6420"/><path class="q q0" style="--qa:134.5deg" d="M150.8 168.2 L77.0 112.4 L136.6 181.1 Z" fill="#8a6420"/><path class="q q0" style="--qa:140.9deg" d="M143.4 174.2 L71.9 132.5 L130.9 188.4 Z" fill="#8a6420"/><path class="q q0" style="--qa:147.3deg" d="M136.8 180.8 L59.0 145.7 L126.1 196.2 Z" fill="#8a6420"/><path class="q q0" style="--qa:153.6deg" d="M131.1 188.1 L44.4 158.8 L122.2 204.5 Z" fill="#8a6420"/><path class="q q0" style="--qa:160.0deg" d="M126.2 195.9 L34.8 175.0 L119.4 213.1 Z" fill="#8a6420"/><path class="q q1" style="--qa:23.0deg" d="M289.4 209.0 L357.2 172.5 L281.6 192.1 Z" fill="#c99a3e"/><path class="q q1" style="--qa:30.0deg" d="M285.7 199.7 L348.6 155.7 L275.7 183.8 Z" fill="#c99a3e"/><path class="q q1" style="--qa:37.0deg" d="M280.8 190.9 L326.0 148.1 L268.8 176.3 Z" fill="#c99a3e"/><path class="q q1" style="--qa:44.0deg" d="M274.8 182.7 L320.7 129.2 L261.0 169.5 Z" fill="#c99a3e"/><path class="q q1" style="--qa:51.0deg" d="M267.8 175.3 L307.0 116.1 L252.3 163.7 Z" fill="#c99a3e"/><path class="q q1" style="--qa:58.0deg" d="M259.8 168.6 L289.3 107.9 L242.9 158.9 Z" fill="#c99a3e"/><path class="q q1" style="--qa:65.0deg" d="M251.0 163.0 L269.7 104.3 L232.9 155.2 Z" fill="#c99a3e"/><path class="q q1" style="--qa:72.0deg" d="M241.5 158.3 L254.0 93.3 L222.5 152.7 Z" fill="#c99a3e"/><path class="q q1" style="--qa:79.0deg" d="M231.5 154.8 L233.9 95.1 L211.9 151.3 Z" fill="#c99a3e"/><path class="q q1" style="--qa:86.0deg" d="M221.0 152.4 L216.6 78.9 L201.2 151.1 Z" fill="#c99a3e"/><path class="q q1" style="--qa:93.0deg" d="M210.4 151.2 L196.3 79.9 L190.5 152.2 Z" fill="#c99a3e"/><path class="q q1" style="--qa:100.0deg" d="M199.6 151.2 L177.2 87.2 L180.0 154.4 Z" fill="#c99a3e"/><path class="q q1" style="--qa:107.0deg" d="M189.0 152.4 L159.6 95.3 L169.9 157.8 Z" fill="#c99a3e"/><path class="q q1" style="--qa:114.0deg" d="M178.5 154.8 L137.3 92.2 L160.3 162.2 Z" fill="#c99a3e"/><path class="q q1" style="--qa:121.0deg" d="M168.5 158.3 L122.4 105.6 L151.4 167.8 Z" fill="#c99a3e"/><path class="q q1" style="--qa:128.0deg" d="M159.0 163.0 L102.9 111.7 L143.3 174.3 Z" fill="#c99a3e"/><path class="q q1" style="--qa:135.0deg" d="M150.2 168.6 L88.1 124.5 L136.1 181.6 Z" fill="#c99a3e"/><path class="q q1" style="--qa:142.0deg" d="M142.2 175.3 L79.6 141.9 L130.0 189.7 Z" fill="#c99a3e"/><path class="q q1" style="--qa:149.0deg" d="M135.2 182.7 L70.0 157.4 L124.9 198.4 Z" fill="#c99a3e"/><path class="q q1" style="--qa:156.0deg" d="M129.2 190.9 L58.1 171.8 L121.1 207.7 Z" fill="#c99a3e"/><path class="q q1" style="--qa:163.0deg" d="M124.3 199.7 L54.1 189.6 L118.5 217.2 Z" fill="#c99a3e"/><path class="q q2" style="--qa:26.0deg" d="M288.0 205.0 L324.5 178.4 L279.2 188.5 Z" fill="#e9c46a"/><path class="q q2" style="--qa:33.8deg" d="M283.2 194.9 L317.6 162.7 L272.1 179.7 Z" fill="#e9c46a"/><path class="q q2" style="--qa:41.6deg" d="M277.0 185.5 L313.2 143.7 L263.8 171.8 Z" fill="#e9c46a"/><path class="q q2" style="--qa:49.3deg" d="M269.5 177.0 L290.2 140.7 L254.4 165.0 Z" fill="#e9c46a"/><path class="q q2" style="--qa:57.1deg" d="M260.8 169.4 L276.0 130.9 L244.1 159.5 Z" fill="#e9c46a"/><path class="q q2" style="--qa:64.9deg" d="M251.1 163.1 L265.0 114.3 L233.1 155.3 Z" fill="#e9c46a"/><path class="q q2" style="--qa:72.7deg" d="M240.6 157.9 L245.2 113.4 L221.5 152.5 Z" fill="#e9c46a"/><path class="q q2" style="--qa:80.4deg" d="M229.3 154.2 L228.2 105.3 L209.7 151.2 Z" fill="#e9c46a"/><path class="q q2" style="--qa:88.2deg" d="M217.7 151.9 L209.3 104.7 L197.8 151.3 Z" fill="#e9c46a"/><path class="q q2" style="--qa:96.0deg" d="M205.8 151.0 L190.8 107.4 L186.0 153.0 Z" fill="#e9c46a"/><path class="q q2" style="--qa:103.8deg" d="M193.9 151.7 L169.8 99.8 L174.5 156.1 Z" fill="#e9c46a"/><path class="q q2" style="--qa:111.6deg" d="M182.1 153.8 L155.9 117.8 L163.6 160.6 Z" fill="#e9c46a"/><path class="q q2" style="--qa:119.3deg" d="M170.9 157.4 L137.7 121.8 L153.5 166.4 Z" fill="#e9c46a"/><path class="q q2" style="--qa:127.1deg" d="M160.2 162.3 L124.4 133.9 L144.3 173.4 Z" fill="#e9c46a"/><path class="q q2" style="--qa:134.9deg" d="M150.4 168.5 L105.2 139.8 L136.2 181.5 Z" fill="#e9c46a"/><path class="q q2" style="--qa:142.7deg" d="M141.5 175.9 L97.7 156.7 L129.4 190.5 Z" fill="#e9c46a"/><path class="q q2" style="--qa:150.4deg" d="M133.9 184.3 L86.3 170.1 L124.0 200.3 Z" fill="#e9c46a"/><path class="q q2" style="--qa:158.2deg" d="M127.5 193.6 L71.8 183.0 L120.1 210.7 Z" fill="#e9c46a"/><path class="q q2" style="--qa:166.0deg" d="M122.6 203.6 L73.3 201.8 L117.8 221.4 Z" fill="#e9c46a"/></g>
+  <path d="M96 268 C88 190 150 140 214 146 C282 152 322 206 312 268 C304 330 252 362 196 360 C138 358 102 322 96 268 Z" fill="#3a2716"/>
+  <path d="M118 270 C114 214 158 182 206 186 C258 190 288 228 282 272 C276 318 240 342 198 340 C154 338 122 312 118 270 Z" fill="#f3dcae"/>
+  <path d="M150 336 C152 360 170 368 180 360 M232 338 C236 362 252 366 260 356" stroke="#3a2716" stroke-width="16" stroke-linecap="round" fill="none"/>
+  <ellipse cx="128" cy="210" rx="20" ry="16" fill="#3a2716"/><ellipse cx="128" cy="210" rx="10" ry="8" fill="#e8a7a0"/>
+  <ellipse cx="282" cy="206" rx="20" ry="16" fill="#3a2716"/><ellipse cx="282" cy="206" rx="10" ry="8" fill="#e8a7a0"/>
+  <g class="eyes">
+    <ellipse cx="172" cy="248" rx="17" ry="20" fill="#1a110a"/><ellipse cx="238" cy="248" rx="17" ry="20" fill="#1a110a"/>
+    <circle cx="178" cy="240" r="6" fill="#fff"/><circle cx="244" cy="240" r="6" fill="#fff"/>
+    <circle cx="168" cy="254" r="2.5" fill="#fff" opacity=".7"/><circle cx="234" cy="254" r="2.5" fill="#fff" opacity=".7"/>
+  </g>
+  <ellipse cx="148" cy="282" rx="14" ry="8" fill="#e98f7f" opacity=".55"/><ellipse cx="262" cy="282" rx="14" ry="8" fill="#e98f7f" opacity=".55"/>
+  <ellipse cx="205" cy="276" rx="14" ry="10" fill="#1a110a"/><ellipse cx="200" cy="272" rx="4" ry="2.5" fill="#fff" opacity=".6"/>
+  <path d="M186 292 C196 304 214 304 224 292" stroke="#1a110a" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M152 318 C160 300 248 300 256 318 L252 352 C232 360 176 360 156 352 Z" fill="#0a0907"/>
+  <svg x="186" y="314" width="36" height="36" viewBox="0 0 200 200"><g fill="#d9b25a"><path d="M141.0 71.3 L161.6 31.6 L124.2 56.3 Z M118.7 53.6 L112.5 21.0 L96.5 50.1 Z M90.5 50.9 L62.6 16.0 L69.9 60.1 Z M65.3 64.0 L32.9 56.4 L53.0 82.9 Z M51.3 88.8 L8.0 100.0 L51.3 111.2 Z M53.0 117.1 L32.9 143.6 L65.3 136.0 Z M69.9 139.9 L62.6 184.0 L90.5 149.1 Z M96.5 149.9 L112.5 179.0 L118.7 146.4 Z M124.2 143.7 L161.6 168.4 L141.0 128.7 Z M138.8 62.5 A54 54 0 1 0 138.8 137.5 L124.5 123.6 A34 34 0 1 1 124.5 76.4 Z"/></g></svg>
+</symbol>
+  <symbol id="cpua" viewBox="0 0 200 200"><path d="M141.0 71.3 L161.6 31.6 L124.2 56.3 Z M118.7 53.6 L112.5 21.0 L96.5 50.1 Z M90.5 50.9 L62.6 16.0 L69.9 60.1 Z M65.3 64.0 L32.9 56.4 L53.0 82.9 Z M51.3 88.8 L8.0 100.0 L51.3 111.2 Z M53.0 117.1 L32.9 143.6 L65.3 136.0 Z M69.9 139.9 L62.6 184.0 L90.5 149.1 Z M96.5 149.9 L112.5 179.0 L118.7 146.4 Z M124.2 143.7 L161.6 168.4 L141.0 128.7 Z M138.8 62.5 A54 54 0 1 0 138.8 137.5 L124.5 123.6 A34 34 0 1 1 124.5 76.4 Z"/></symbol>
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 2C7.9 2 4.6 5.3 4.6 9.4c0 5.4 6.2 11.6 6.9 12.3.3.3.7.3 1 0 .7-.7 6.9-6.9 6.9-12.3C19.4 5.3 16.1 2 12 2Zm0 10.2a2.8 2.8 0 1 1 0-5.6 2.8 2.8 0 0 1 0 5.6Z"/></symbol>
 </svg>
 
@@ -633,6 +681,25 @@
   <span>@chelibo_ · Foodtruck ·</span><span>@chelibo_ · Foodtruck ·</span><span>@chelibo_ · Foodtruck ·</span><span>@chelibo_ · Foodtruck ·</span>
 </div></div>
 
+<div class="wrap">
+  <section class="block pincho" id="pincho">
+    <div class="head"><h2 data-drift="1">Conoce a Pincho</h2><p class="rv">La mascota de Chelibo: un puercoespín con las púas de oro.</p></div>
+    <div class="p-hero">
+      <button class="p-pet rv" type="button" id="pinchoBtn" aria-label="Pincho, la mascota de Chelibo. Tócalo y erizará las púas">
+        <svg viewBox="0 0 400 400" aria-hidden="true"><use href="#m-pincho"/></svg>
+      </button>
+      <div class="p-txt rv">
+        <p class="eyebrow">Pincho · desde la primera parrillada</p>
+        <p>Pincho es pequeño, curioso y siempre llega el primero al olor de la plancha. Sus púas doradas son la marca de la casa: donde veas una <b>C de púas</b>, hay Chelibo.</p>
+        <div class="p-mark"><svg viewBox="0 0 200 200" aria-hidden="true"><use href="#cpua"/></svg>
+          <div><b>La C de púas</b><span>El símbolo de Chelibo: la C del nombre hecha con las púas de Pincho. Funciona sola, en dorado sobre negro, en cualquier tamaño.</span></div></div>
+      </div>
+    </div>
+    <div class="merch"><figure class="mc rv"><div class="mc-art"><svg viewBox="0 0 200 200"><path d="M62 40 L36 56 L20 92 L46 102 L54 86 L54 172 L146 172 L146 86 L154 102 L180 92 L164 56 L138 40 C130 54 116 60 100 60 C84 60 70 54 62 40 Z" fill="#221d16" stroke="#4a4030" stroke-width="2"/><svg x="74" y="78" width="52" height="52" viewBox="0 0 200 200"><use href="#cpua" fill="#d9b25a"/></svg></svg></div><figcaption><b>Camiseta</b><span>Negra con la C de púas en dorado</span></figcaption></figure><figure class="mc rv"><div class="mc-art"><svg viewBox="0 0 200 200"><path d="M40 120 C40 70 70 46 104 46 C140 46 166 72 166 120 Z" fill="#221d16" stroke="#4a4030" stroke-width="2"/><path d="M30 120 L188 120 C190 134 176 140 150 140 L40 138 C28 136 26 126 30 120 Z" fill="#0a0907" stroke="#3a3326" stroke-width="2"/><circle cx="104" cy="48" r="6" fill="#d9b25a"/><svg x="80" y="66" width="48" height="48" viewBox="0 0 200 200"><use href="#cpua" fill="#d9b25a"/></svg></svg></div><figcaption><b>Gorra</b><span>Para la cola de la foodtruck</span></figcaption></figure><figure class="mc rv"><div class="mc-art"><svg viewBox="0 0 200 200"><path d="M150 82 C178 82 180 132 150 132" stroke="#d9b25a" stroke-width="10" fill="none"/><path d="M48 60 L152 60 L146 166 C146 172 140 176 134 176 L66 176 C60 176 54 172 54 166 Z" fill="#d9b25a"/><ellipse cx="100" cy="60" rx="52" ry="8" fill="#a67c28"/><svg x="62" y="80" width="76" height="76" viewBox="0 0 400 400"><use href="#m-pincho"/></svg></svg></div><figcaption><b>Taza</b><span>Dorada, con Pincho</span></figcaption></figure><figure class="mc rv"><div class="mc-art"><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="84" fill="#f4f1ec"/><circle cx="100" cy="100" r="76" fill="#0a0907"/><svg x="30" y="26" width="140" height="140" viewBox="0 0 400 400"><use href="#m-pincho"/></svg></svg></div><figcaption><b>Pegatina</b><span>Pincho, para el portátil o la nevera</span></figcaption></figure></div>
+    <p class="m-note rv">Merchandising de Chelibo. Pregúntanos en la foodtruck o por Instagram.</p>
+  </section>
+</div>
+
 <!-- CONTACTO: los enlaces y el teléfono se rellenan en CHELIBO, al principio del script. -->
 <section class="contact bleed" id="contacto">
   <div class="garland g-contact" data-guirnalda aria-hidden="true"></div>
@@ -737,6 +804,11 @@ var CHELIBO = {
     if (url) { a.href = url; a.target = '_blank'; a.rel = 'noopener'; enable(a); }
     else if (a.hasAttribute('data-hide-pending')) a.hidden = true;
   });
+  /* Pincho: al tocarlo eriza las púas y da un saltito */
+  (function () {
+    var b = $('#pinchoBtn'); if (!b) return;
+    b.addEventListener('click', function () { b.classList.remove('erizo'); void b.offsetWidth; b.classList.add('erizo'); setTimeout(function () { b.classList.remove('erizo'); }, 700); });
+  })();
   /* Reseñas: nota media y tarjetas con las reseñas reales que haya en CHELIBO */
   (function () {
     var box = $('#resenas'); if (!box) return;
@@ -1967,7 +2039,8 @@ void main(){
   function measureSoon() { if (mRaf) return; mRaf = requestAnimationFrame(function () { mRaf = 0; measure(); }); }
 
   watch(heroWrap, function (v) { V.hero = v; });
-  watch($('#mapa'));   /* el pin del mapa solo late cuando se ve */
+  watch($('#mapa'));
+  watch($('#pincho'));   /* Pincho solo parpadea cuando se ve */   /* el pin del mapa solo late cuando se ve */
   watch(gal, function (v) { V.gal = v; });
   watch(contact, function (v) { V.contact = v; });
   strips.forEach(function (s) { watch(s.box, function (v) { s.vis = v; }); });

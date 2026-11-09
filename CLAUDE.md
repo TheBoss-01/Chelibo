@@ -38,6 +38,10 @@
   (abren `googleMaps`). Las reseñas reales se copian en `CHELIBO.resenas` ({nombre, estrellas, texto, cuando}) con
   `valoracion` y `numResenas`; vacío, solo salen los botones. No se pueden leer de Google desde la nube ni desde
   claude.ai, y nunca se inventan: pedírselas al usuario.
+- Mascota y marca (sección "Conoce a Pincho", `#pincho`, en las tres versiones): Pincho, un puercoespín con púas doradas
+  (símbolo SVG `#m-pincho`; al tocarlo eriza las púas y salta, parpadea solo cuando se ve) y "la C de púas", el símbolo
+  reconocible de la marca (`#cpua`, la C del nombre hecha con púas). Debajo, merchandising de muestra en SVG (camiseta,
+  gorra, taza, pegatina). Las púas y la C se generan con un script de Python (no a mano).
 - Rendimiento: el sello 3D se dibuja en un `<canvas>` (una sola capa) y solo se redibuja si cambia el giro;
   el flotado, la firma y las cintas son animaciones de GPU. El bucle JS se para cuando no hay nada que mover
   y los efectos de fondo se pausan tras 12 s sin interacción. Con "movimiento reducido" la página es estática.
