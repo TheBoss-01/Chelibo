@@ -292,6 +292,10 @@
   .chat.back { z-index: 0; }
   .chat .hat { left: 36.19%; top: -19.5%; width: 70.62%; height: 46.4%; transform: none; overflow: visible; }
   .sello-wrap:not(.has-canvas) .chat { opacity: 1 !important; transform: none !important; }
+  /* Gorro 3D: lienzo WebGL que sigue al sello; el propio dibujo resuelve qué tapa el sello. Va dentro de una caja que lo
+     recorta justo antes del borde derecho de la pantalla (si no, en pantallas medianas la página se desplazaría de lado) */
+  .chat3w { position: absolute; left: -60%; top: -80%; height: 260%; overflow: hidden; pointer-events: none; z-index: 3; }
+  .tema-navidad .sello-wrap canvas.chat3 { position: absolute; left: 0; top: 0; z-index: auto; will-change: transform; }
   .tema-navidad .head { position: relative; }
   .holly { position: absolute; left: -4px; top: -24px; width: 54px; height: 34px; transform: rotate(-14deg); pointer-events: none; }
   .stars { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
@@ -757,7 +761,7 @@ var CHELIBO = {
       hsv.setAttribute('viewBox', '0.26 5.08 39.55 25.98'); hr16.setAttribute('transform', 'rotate(16 20 16)');
       while (hsv.firstChild) hg.appendChild(hsv.firstChild);
       hr16.appendChild(hg); hsv.appendChild(hr16); hb.appendChild(hsv); fl.appendChild(hb);
-      heroHat = { box: hb, svg: hsv, g: hg, a: 0, v: 0, dy: reduce ? 0 : -1.5, dv: 0, landed: reduce, back: false, ryd: null, rxd: null, hop: 0, lastA: 99, lastDy: 99, lastBox: '', op: -1, busy: false };
+      heroHat = { box: hb, svg: hsv, g: hg, a: 0, v: 0, f: 0, fv: 0, dy: reduce ? 0 : -1.5, dv: 0, landed: reduce, back: false, ryd: null, rxd: null, hop: 0, lastA: 99, lastDy: 99, lastBox: '', op: -1, busy: false };
     }
     var hero = $('.hero');
     if (hero) {
@@ -899,7 +903,7 @@ var CHELIBO = {
         ctx.beginPath(); T(zN); ctx.moveTo(px, py); ctx.lineTo(-px, -py); T(zF); ctx.lineTo(-px, -py); ctx.lineTo(px, py); ctx.closePath(); I(); ctx.fill();
         ctx.restore();
       }
-      self.m = { a: a, b: b, d: d, vx: vx, vy: vy, D: D, cw: cw, front: cy * cx >= 0 };
+      self.m = { a: a, b: b, d: d, vx: vx, vy: vy, D: D, cw: cw, front: cy * cx >= 0, cy: cy, sy: sy, cx: cx, sx: sx, s: s };
       T(zN); ctx.drawImage(base, -h, -h, W, W);
       if (sheen != null) {
         var q = sheen * 1.8 - .4;
@@ -1740,6 +1744,8 @@ void main(){
     strips.forEach(function (s) { s.half = (s.el.scrollWidth / 2) || 1; });
     M.docH = Math.max(1, document.documentElement.scrollHeight - M.vh);
     M.coinW = heroWrap ? heroWrap.offsetWidth : 300;
+    /* Hueco entre el sello y el borde derecho de la pantalla (para que el gorro 3D no haga desplazarse la página) */
+    M.hatRoom = heroWrap ? (document.documentElement.clientWidth || innerWidth) - 10 - heroWrap.getBoundingClientRect().right : 999;
     hero.raster();
     if (hero.ok && heroWrap) heroWrap.classList.add('has-canvas');
     kick();
@@ -1817,37 +1823,292 @@ void main(){
     }
     if (U.mode === 'rest' && !drag && U.hop === 0) heroWrap.classList.remove('held');
   }
-  /* Gorro (tema navideño): misma transformación que la cara del sello, delante o detrás según de qué lado se vea.
-     Se bambolea como un muelle: se inclina al girar el sello, da un respingo al saltar y al caer, y al aparecer
-     cae desde arriba sobre el sello */
+  /* Gorro (tema navideño). En 3D (WebGL, trazado de rayos): el mismo gorro del logo pequeño con volumen, en el mismo
+     sitio y con la misma inclinación, en el espacio del sello: gira y se voltea con él, el sello lo tapa cuando queda
+     detrás y su sombra cae sobre el oro. Se bambolea como un muelle (la punta se dobla al girar, lanzar y caer) y al
+     aparecer cae desde arriba sobre el sello. Sin WebGL por hardware se usa el SVG plano (.chat) */
+  var GLSL_H = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform vec2 uRes, uHc;
+uniform float uSpan, uS, uRb;
+uniform mat3 uM;
+uniform vec3 uLs, uC0, uAx, uS0, uS1, uS2, uS3, uPp, uHb;
+uniform vec4 uRr;
+const float R0 = .4527, HZ = .04, TR = .172, TRr = .07, PR = .07;
+float h13(vec3 p){ p = fract(p * .1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
+float vn3(vec3 p){ vec3 i = floor(p), f = fract(p), u = f * f * (3. - 2. * f); vec2 o = vec2(1., 0.);
+  return mix(mix(mix(h13(i), h13(i + o.xyy), u.x), mix(h13(i + o.yxy), h13(i + o.xxy), u.x), u.y),
+             mix(mix(h13(i + o.yyx), h13(i + o.xyx), u.x), mix(h13(i + o.yxx), h13(i + o.xxx), u.x), u.y), u.z); }
+float smin(float a, float b, float k){ float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
+/* Cono redondeado entre a (radio r1) y b (radio r2) */
+float sdRC(vec3 p, vec3 a, vec3 b, float r1, float r2){
+  vec3 ba = b - a; float l2 = dot(ba, ba), rr = r1 - r2, a2 = l2 - rr * rr, il2 = 1. / l2;
+  vec3 pa = p - a; float y = dot(pa, ba), z = y - l2;
+  vec3 xv = pa * l2 - ba * y; float x2 = dot(xv, xv), y2 = y * y * l2, z2 = z * z * l2;
+  float k = sign(rr) * rr * rr * x2;
+  if (sign(z) * a2 * z2 > k) return sqrt(x2 + z2) * il2 - r2;
+  if (sign(y) * a2 * y2 < k) return sqrt(x2 + y2) * il2 - r1;
+  return (sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
+}
+/* Cuerpo de terciopelo: tres conos encadenados que se doblan hacia la borla; nada por debajo del ribete */
+float body(vec3 p){
+  float d = sdRC(p, uS0, uS1, uRr.x, uRr.y);
+  d = smin(d, sdRC(p, uS1, uS2, uRr.y, uRr.z), .03);
+  d = smin(d, sdRC(p, uS2, uS3, uRr.z, uRr.w), .02);
+  return max(d, -dot(p - uC0, uAx) - .01);
+}
+float brim(vec3 p){ vec3 q = p - uC0; float y = dot(q, uAx); return length(vec2(length(q - uAx * y) - TR, y)) - TRr; }
+/* Pelo: la superficie del ribete y de la borla se abomba con ruido (solo cerca, que es lo caro) */
+float fluff(vec3 p, float d){ return d < .03 ? d - .012 * (vn3(p * 46.) - .4) : d; }
+float mapH(vec3 p, out float m){
+  float d = body(p), r = fluff(p, brim(p)), q = fluff(p + 3.1, length(p - uPp) - PR);
+  m = 0.;
+  if (r < d) { d = r; m = 1.; }
+  if (q < d) { d = q; m = 2.; }
+  return d;
+}
+float mapD(vec3 p){ float m; return mapH(p, m); }
+vec2 sph(vec3 ro, vec3 rd, vec3 c, float r){ vec3 oc = ro - c; float b = dot(oc, rd), h = b * b - dot(oc, oc) + r * r;
+  if (h < 0.) return vec2(1., -1.); h = sqrt(h); return vec2(-b - h, -b + h); }
+/* El sello como obstáculo: cilindro del radio del aro y del grosor de la moneda */
+float coinHit(vec3 ro, vec3 rd){
+  float t = 1e9;
+  if (abs(rd.z) > 1e-5) {
+    float t1 = (HZ - ro.z) / rd.z, t2 = (-HZ - ro.z) / rd.z;
+    vec3 p1 = ro + rd * t1, p2 = ro + rd * t2;
+    if (t1 > 0. && dot(p1.xy, p1.xy) < R0 * R0) t = min(t, t1);
+    if (t2 > 0. && dot(p2.xy, p2.xy) < R0 * R0) t = min(t, t2);
+  }
+  float a = dot(rd.xy, rd.xy), b = dot(ro.xy, rd.xy), c = dot(ro.xy, ro.xy) - R0 * R0, h = b * b - a * c;
+  if (a > 1e-6 && h > 0.) { float ts = (-b - sqrt(h)) / a; vec3 ps = ro + rd * ts; if (ts > 0. && abs(ps.z) < HZ) t = min(t, ts); }
+  return t;
+}
+float shadowH(vec3 ro, vec3 l){
+  float res = 1., t = .004;
+  for (int i = 0; i < 16; i++) { float h = mapD(ro + l * t); res = min(res, 9. * h / t); t += clamp(h, .008, .08); if (res < .01 || t > 1.) break; }
+  return clamp(res, 0., 1.);
+}
+vec3 nrmH(vec3 p){ vec2 k = vec2(1., -1.) * .0016;
+  return normalize(k.xyy * mapD(p + k.xyy) + k.yyx * mapD(p + k.yyx) + k.yxy * mapD(p + k.yxy) + k.xxx * mapD(p + k.xxx)); }
+float aoH(vec3 p, vec3 n){ float o = 0., s = 1.;
+  for (int i = 1; i <= 3; i++) { float h = .018 * float(i); o += (h - mapD(p + n * h)) * s; s *= .7; }
+  return clamp(1. - 2.2 * o, 0., 1.); }
+vec3 shadeH(vec3 p, vec3 rd, float m){
+  vec3 n = nrmH(p), l = uLs * uM, f = normalize(vec3(.75, -.1, .65)) * uM;
+  float sh = shadowH(p + n * .004, l), ao = aoH(p, n), ndl = dot(n, l), ndv = clamp(-dot(n, rd), 0., 1.);
+  if (m < .5) {
+    if (dot(n, uAx) < -.8) return vec3(.05, .002, .006) * ao;   /* por dentro del gorro */
+    float w = clamp((ndl + .3) / 1.3, 0., 1.) * mix(.3, 1., sh);
+    vec3 c = vec3(.56, .012, .03) * (w * 1.05 + .2 * clamp(dot(n, f), 0., 1.) + .09) * ao;
+    c += vec3(.95, .3, .34) * pow(1. - ndv, 2.4) * .2 * mix(.45, 1., sh);   /* el terciopelo se aclara en los bordes */
+    return c * (.93 + .14 * vn3(p * 170.));
+  }
+  float w = clamp((ndl + .55) / 1.55, 0., 1.) * mix(.4, 1., sh);
+  vec3 c = vec3(.9, .88, .84) * (w * .95 + .18 * clamp(dot(n, f), 0., 1.) + .13) * (.5 + .5 * ao);
+  return c * (.8 + .26 * vn3(p * 130. + m));
+}
+void main(){
+  vec2 fq = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) / uRes - .5;
+  vec2 q = uHc + fq * uSpan;
+  vec3 ro = vec3(q / uS, 2.) * uM, rd = -(vec3(0., 0., 1.) * uM);
+  float pw = uSpan / uRes.x / uS, tc = coinHit(ro, rd), th = 1e9, cov = 0.;
+  vec2 b = sph(ro, rd, uHb, uRb);
+  if (b.y > 0. && b.x < b.y) {
+    float t = max(b.x, 0.), dm = 1e9, tm = t; bool hit = false;
+    for (int i = 0; i < 64; i++) {
+      float d = mapD(ro + rd * t);
+      if (d < dm) { dm = d; tm = t; }
+      if (d < pw * .3) { hit = true; break; }
+      t += d;
+      if (t > b.y || t > tc) break;
+    }
+    if (hit) { th = t; cov = 1.; } else if (dm < pw) { th = tm; cov = 1. - dm / pw; }
+  }
+  if (cov > 0. && th < tc) {
+    vec3 p = ro + rd * th; float m; mapH(p, m);
+    vec3 col = pow(clamp(shadeH(p, rd, m), 0., 1.), vec3(1. / 2.2));
+    gl_FragColor = vec4(col * cov, cov);
+    return;
+  }
+  /* Sombra del gorro sobre las caras del sello */
+  if (tc < 1e8) {
+    vec3 pc = ro + rd * tc, l = uLs * uM;
+    if (abs(abs(pc.z) - HZ) < .002) {
+      vec2 bs = sph(pc, l, uHb, uRb);
+      if (bs.y > 0. && bs.x < bs.y) {
+        float s = shadowH(pc + l * max(bs.x, .004), l), e = .5 - max(abs(fq.x), abs(fq.y));   /* se desvanece antes del borde del lienzo */
+        gl_FragColor = vec4(0., 0., 0., (1. - s) * .4 * smoothstep(0., .12, e)); return;
+      }
+    }
+  }
+  gl_FragColor = vec4(0.);
+}`;
+  /* Geometría del gorro a partir del dibujo del SVG (40×32 unidades, girado 16° como en la cabecera), en el espacio del
+     sello: lado del logo = 1, centro del sello = 0, x a la derecha, y hacia abajo, z hacia quien mira */
+  function hatPt(hx, hy) {
+    var c = Math.cos(16 * DEG), s = Math.sin(16 * DEG), x = (hx - 20) * .017857, y = (hy - 16) * .017857;
+    return [.2143 + x * c - y * s, -.5 + x * s + y * c, 0];
+  }
+  var HG = { c0: hatPt(16.5, 25.25), ax: [Math.sin(16 * DEG), -Math.cos(16 * DEG), 0], bd: [Math.cos(16 * DEG), Math.sin(16 * DEG), 0],
+    sp: [hatPt(16.6, 23), hatPt(19.5, 13), hatPt(25.5, 6.5), hatPt(33, 10.5)], rr: [.18, .135, .078, .036], pp: hatPt(35.5, 14.5) };
+  /* Esfera que envuelve el gorro (centro de la caja que lo contiene) más un margen para el bamboleo */
+  (function () {
+    var P = [], k, q, j;
+    for (k = 0; k < 16; k++) {
+      var th = k / 16 * 6.2832, dir = [HG.bd[0] * Math.cos(th), HG.bd[1] * Math.cos(th), Math.sin(th)];
+      for (j = 0; j < 3; j++) P.push([HG.c0[0] + dir[0] * .242 + HG.ax[0] * (j - 1) * .07, HG.c0[1] + dir[1] * .242 + HG.ax[1] * (j - 1) * .07, dir[2] * .242]);
+    }
+    HG.sp.concat([HG.pp]).forEach(function (c, i) {
+      var r = i < 4 ? HG.rr[i] : .085;
+      for (j = 0; j < 6; j++) { q = c.slice(); q[j >> 1] += (j & 1 ? -r : r); P.push(q); }
+    });
+    var lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+    P.forEach(function (p) { for (j = 0; j < 3; j++) { lo[j] = Math.min(lo[j], p[j]); hi[j] = Math.max(hi[j], p[j]); } });
+    HG.hb = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+    HG.rb = 0;
+    P.forEach(function (p) { HG.rb = Math.max(HG.rb, Math.hypot(p[0] - HG.hb[0], p[1] - HG.hb[1], p[2] - HG.hb[2])); });
+    HG.rb += .08;
+  })();
+  function rotAbout(p, o, k, a) {   /* gira el punto p alrededor del eje k (unitario) que pasa por o */
+    var c = Math.cos(a), s = Math.sin(a), x = p[0] - o[0], y = p[1] - o[1], z = p[2] - o[2], d = k[0] * x + k[1] * y + k[2] * z;
+    var cx = k[1] * z - k[2] * y, cy = k[2] * x - k[0] * z, cz = k[0] * y - k[1] * x;
+    return [o[0] + x * c + cx * s + k[0] * d * (1 - c), o[1] + y * c + cy * s + k[1] * d * (1 - c), o[2] + z * c + cz * s + k[2] * d * (1 - c)];
+  }
+  function hatGL() {
+    var cv = document.createElement('canvas'), gl = null;
+    cv.className = 'chat3'; cv.setAttribute('aria-hidden', 'true');
+    try { gl = cv.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false }); } catch (er) { gl = null; }
+    if (!gl) return null;
+    var dbg = gl.getExtension('WEBGL_debug_renderer_info'), ren = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+    var hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
+    function lose() { var lx = gl.getExtension('WEBGL_lose_context'); if (lx) lx.loseContext(); }
+    if ((/swiftshader|llvmpipe|software|basic render/i.test(ren) && !/[?&]gl=1\b/.test(location.search)) || !hp || hp.precision < 20) { lose(); return null; }
+    function shd(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+    var pr = gl.createProgram();
+    gl.attachShader(pr, shd(gl.VERTEX_SHADER, 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'));
+    gl.attachShader(pr, shd(gl.FRAGMENT_SHADER, GLSL_H));
+    gl.bindAttribLocation(pr, 0, 'a'); gl.linkProgram(pr);
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { lose(); throw new Error(gl.getProgramInfoLog(pr)); }
+    gl.useProgram(pr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    var U3 = {};
+    ['uRes', 'uHc', 'uSpan', 'uS', 'uRb', 'uM', 'uLs', 'uC0', 'uAx', 'uS0', 'uS1', 'uS2', 'uS3', 'uPp', 'uHb', 'uRr'].forEach(function (n) { U3[n] = gl.getUniformLocation(pr, n); });
+    var Ls = [-.45, -.7, .55], ll = Math.hypot(Ls[0], Ls[1], Ls[2]);
+    gl.uniform3fv(U3.uLs, [Ls[0] / ll, Ls[1] / ll, Ls[2] / ll]);
+    gl.uniform1f(U3.uSpan, 2 * HG.rb); gl.uniform1f(U3.uRb, HG.rb); gl.uniform4fv(U3.uRr, HG.rr);
+    gl.uniform3fv(U3.uAx, HG.ax);
+    gl.clearColor(0, 0, 0, 0);
+    var self = { cv: cv, css: 0, q: 1, last: '', lost: false, px1: new Uint8Array(4) };
+    cv.addEventListener('webglcontextlost', function (ev) { ev.preventDefault(); self.lost = true; });
+    /* Tamaño del lienzo (cubre el gorro en cualquier postura) y su sitio: centrado en el sello dentro de .chat3w */
+    self.size = function (wcss) {
+      var css = Math.round(2 * HG.rb * wcss), w = Math.max(16, Math.round(css * Math.min(window.devicePixelRatio || 1, 2) * .75 * self.q)), fw = wcss * 1.06;
+      if (css === self.css && cv.width === w) return;
+      self.css = css; cv.width = cv.height = w; gl.viewport(0, 0, w, w);
+      cv.style.width = cv.style.height = css + 'px';
+      cv.style.left = (1.1 * fw - css / 2).toFixed(1) + 'px'; cv.style.top = (1.3 * fw - css / 2).toFixed(1) + 'px';
+      gl.uniform2f(U3.uRes, w, w); self.last = '';
+    };
+    /* Pinta el gorro con la pose del sello (m) y la del propio gorro (g: puntos ya doblados por el bamboleo) */
+    self.draw = function (m, g) {
+      if (self.lost) return;
+      var R = [[m.cy, 0, m.sy], [m.sy * m.sx, m.cx, -m.cy * m.sx], [-m.sy * m.cx, m.sx, m.cy * m.cx]];
+      gl.uniformMatrix3fv(U3.uM, false, [R[0][0], R[1][0], R[2][0], R[0][1], R[1][1], R[2][1], R[0][2], R[1][2], R[2][2]]);
+      gl.uniform1f(U3.uS, m.s);
+      var hc = [m.s * (R[0][0] * g.hb[0] + R[0][1] * g.hb[1] + R[0][2] * g.hb[2]), m.s * (R[1][0] * g.hb[0] + R[1][1] * g.hb[1] + R[1][2] * g.hb[2])];
+      gl.uniform2f(U3.uHc, hc[0], hc[1]);
+      gl.uniform3fv(U3.uC0, g.c0); gl.uniform3fv(U3.uS0, g.sp[0]); gl.uniform3fv(U3.uS1, g.sp[1]); gl.uniform3fv(U3.uS2, g.sp[2]); gl.uniform3fv(U3.uS3, g.sp[3]);
+      gl.uniform3fv(U3.uPp, g.pp); gl.uniform3fv(U3.uHb, g.hb);
+      gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLES, 0, 3);
+      return hc;
+    };
+    /* Mide lo que tarda la GPU con el gorro de frente; si va lenta, menos resolución; si aun así no, gorro plano */
+    self.check = function (m, g) {
+      var t = now(); self.draw(m, g); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, self.px1); return now() - t;
+    };
+    self.lose = lose;
+    return self;
+  }
   function hatStep(ryd, rxd, ht, op, s) {
     var H = heroHat, m = hero.m;
     if (!m || !s) return;
+    /* La primera vez se intenta el gorro 3D; si no hay WebGL por hardware, se queda el SVG plano */
+    if (H.g3 === undefined) {
+      H.g3 = null;
+      try { H.g3 = hatGL(); } catch (er) { H.g3 = null; if (window.console) console.warn(er); }
+      if (H.g3) {
+        H.box.style.display = 'none'; H.wrap = document.createElement('div'); H.wrap.className = 'chat3w';
+        H.wrap.appendChild(H.g3.cv); H.box.parentNode.appendChild(H.wrap); H.tested = false; H.ww = 0;
+      }
+    }
+    var seen = H.landed ? op : op * clamp((H.dy + 1.5) / .35, 0, 1);
+    if (seen > .998) seen = 1;
+    var tgt = H.g3 ? H.g3.cv : H.box;
+    if (Math.abs(seen - H.op) > .004 || (seen === 1 && H.op !== 1)) { H.op = seen; tgt.style.opacity = seen.toFixed(3); }
+    if (!reduce) {
+      var wy = H.ryd === null ? 0 : (ryd - H.ryd) / s, wx = H.rxd === null ? 0 : (rxd - H.rxd) / s;
+      H.ryd = ryd; H.rxd = rxd;
+      H.v += (U.hopV - H.hop) * 140; H.hop = U.hopV;
+      var aim = clamp(-wy * .012 + wx * .005, -28, 28), aimF = clamp(wy * .02 - wx * .014, -30, 30);
+      /* Caída al aparecer: cuando el sello ya se ve, el gorro cae, rebota un poco y se asienta */
+      if (!H.landed && op > .92) {
+        H.dv += 26 * s; H.dy += H.dv * s;
+        if (H.dy >= 0) {
+          H.dy = 0; H.v += 20 + H.dv * 12; H.fv -= 10 + H.dv * 6;
+          if (H.dv > 2.2) H.dv = -H.dv * .28; else { H.dv = 0; H.landed = true; }
+        }
+      }
+      var n = Math.max(1, Math.ceil(s / .008)), h = s / n;
+      for (var i = 0; i < n; i++) {
+        H.v += (-110 * (H.a - aim) - 4.2 * H.v) * h; H.a += H.v * h;
+        H.fv += (-90 * (H.f - aimF) - 3.6 * H.fv) * h; H.f += H.fv * h;
+      }
+      H.a = clamp(H.a, -30, 30); H.f = clamp(H.f, -30, 30);
+      H.busy = !H.landed || Math.abs(H.a) > .06 || Math.abs(H.v) > .6 || Math.abs(H.f) > .06 || Math.abs(H.fv) > .6;
+      if (!H.busy) { H.a = H.v = H.f = H.fv = 0; }
+    }
+    if (H.g3) {
+      var Wc = M.coinW || 300, room = clamp((M.hatRoom == null ? 999 : M.hatRoom) - .03 * Wc, 0, .636 * Wc), ww = Math.round(1.696 * Wc + room);
+      H.g3.size(Wc);
+      if (ww !== H.ww) { H.ww = ww; H.wrap.style.width = ww + 'px'; }
+      /* Bamboleo: la parte de arriba gira sobre la base y la punta, además, sobre el codo (se dobla más) */
+      var A = H.a * DEG, F = H.f * DEG, Z = [0, 0, 1], sp = HG.sp.slice(), pp = HG.pp;
+      var up = [sp[1], sp[2], sp[3], pp].map(function (q) { return rotAbout(rotAbout(q, sp[0], Z, A * .35), sp[0], HG.bd, F * .35); });
+      var tip = [up[1], up[2], up[3]].map(function (q) { return rotAbout(rotAbout(q, up[0], Z, A * .65), up[0], HG.bd, F * .65); });
+      var dy = H.dy * .45, mv = function (q) { return [q[0], q[1] + dy, q[2]]; };
+      var g = { c0: mv(HG.c0), sp: [mv(sp[0]), mv(up[0]), mv(tip[0]), mv(tip[1])], pp: mv(tip[2]), hb: mv(HG.hb) };
+      var key = [m.cy, m.sy, m.cx, m.sx, m.s, H.a, H.f, H.dy].map(function (v) { return v.toFixed(4); }).join() + ',' + H.g3.cv.width;
+      if (key !== H.g3.last) {
+        H.g3.last = key;
+        var hc;
+        if (!H.tested) {
+          /* La primera vez, medir: si tarda demasiado, menos resolución o, si no basta, el gorro plano */
+          H.tested = true;
+          var ms = H.g3.check(m, g);
+          if (ms > 14) { H.g3.q = Math.max(.5, Math.sqrt(10 / ms)); H.g3.size(M.coinW || 300); ms = H.g3.check(m, g); }
+          if (ms > 30 && !/[?&]gl=1\b/.test(location.search)) {
+            H.g3.lose(); H.g3.cv.parentNode.removeChild(H.g3.cv); H.g3 = null; H.box.style.display = ''; H.op = -1; H.lastBox = ''; H.lastA = 99; H.lastDy = 99;
+            return;
+          }
+        }
+        hc = H.g3.draw(m, g);
+        H.hc = hc;
+      }
+      var tr = ht + ' translate(' + ((H.hc ? H.hc[0] : 0) * (M.coinW || 300)).toFixed(2) + 'px,' + ((H.hc ? H.hc[1] : 0) * (M.coinW || 300)).toFixed(2) + 'px)';
+      if (tr !== H.lastBox) { H.lastBox = tr; H.g3.cv.style.transform = tr; }
+      return;
+    }
+    /* Gorro plano (SVG): misma transformación que la cara del sello, delante o detrás según de qué lado se vea */
     var k = 1.06 * (M.coinW || 300) / (m.cw || 1);   /* píxeles CSS por píxel del lienzo del sello */
     var bx = ht + ' matrix(' + m.a.toFixed(4) + ',' + m.b.toFixed(4) + ',0,' + m.d.toFixed(4) + ',' + (.5 * m.D * m.vx * k).toFixed(2) + ',' + (.5 * m.D * m.vy * k).toFixed(2) + ')';
     if (bx !== H.lastBox) { H.lastBox = bx; H.box.style.transform = bx; }
     if (m.front === H.back) { H.back = !m.front; H.box.classList.toggle('back', H.back); }
-    var seen = H.landed ? op : op * clamp((H.dy + 1.5) / .35, 0, 1);
-    if (seen > .998) seen = 1;
-    if (Math.abs(seen - H.op) > .004 || (seen === 1 && H.op !== 1)) { H.op = seen; H.box.style.opacity = seen.toFixed(3); }
-    if (reduce) return;
-    var wy = H.ryd === null ? 0 : (ryd - H.ryd) / s, wx = H.rxd === null ? 0 : (rxd - H.rxd) / s;
-    H.ryd = ryd; H.rxd = rxd;
-    H.v += (U.hopV - H.hop) * 140; H.hop = U.hopV;
-    var aim = clamp(-wy * .012 + wx * .005, -28, 28);
-    /* Caída al aparecer: cuando el sello ya se ve, el gorro cae, rebota un poco y se asienta */
-    if (!H.landed && op > .92) {
-      H.dv += 26 * s; H.dy += H.dv * s;
-      if (H.dy >= 0) {
-        H.dy = 0; H.v += 20 + H.dv * 12;
-        if (H.dv > 2.2) H.dv = -H.dv * .28; else { H.dv = 0; H.landed = true; }
-      }
-    }
-    var n = Math.max(1, Math.ceil(s / .008)), h = s / n;
-    for (var i = 0; i < n; i++) { H.v += (-110 * (H.a - aim) - 4.2 * H.v) * h; H.a += H.v * h; }
-    H.a = clamp(H.a, -40, 40);
-    H.busy = !H.landed || Math.abs(H.a) > .06 || Math.abs(H.v) > .6;
-    if (!H.busy) { H.a = 0; H.v = 0; }
     if (Math.abs(H.a - H.lastA) > .05) { H.lastA = H.a; H.g.setAttribute('transform', 'rotate(' + H.a.toFixed(2) + ' 16.5 25.25)'); }
     if (Math.abs(H.dy - H.lastDy) > .002 || (H.landed && H.lastDy !== 0)) { H.lastDy = H.dy; H.svg.style.transform = H.dy ? 'translate(0,' + (H.dy * 100).toFixed(1) + '%)' : ''; }
   }
@@ -1864,6 +2125,7 @@ void main(){
       if ((Q.slow / Q.n > .15 || Q.ema > 6) && Q.lvl < QL.length - 1) {
         Q.lvl++;
         hero.setQuality(QL[Q.lvl][0], QL[Q.lvl][1]);
+        if (heroHat && heroHat.g3) heroHat.g3.q = Math.max(.45, heroHat.g3.q * .75);   /* el gorro 3D también, menos resolución */
         lastDraw = [9, 9, 9];
       }
       Q.n = 0; Q.slow = 0;
