@@ -1946,6 +1946,132 @@ void main(){
     }
     if (U.mode === 'rest' && !drag && U.hop === 0) heroWrap.classList.remove('held');
   }
+  /* Gorro (tema navideño). En 3D (WebGL, trazado de rayos): el mismo gorro del logo pequeño con volumen, en el mismo
+     sitio y con la misma inclinación, en el espacio del sello: gira y se voltea con él, el sello lo tapa cuando queda
+     detrás y su sombra cae sobre el oro. Se bambolea como un muelle (la punta se dobla al girar, lanzar y caer) y al
+     aparecer cae desde arriba sobre el sello. Sin WebGL por hardware se usa el SVG plano (.chat) */
+  var GLSL_H = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform vec2 uRes, uHc;
+uniform float uSpan, uS, uRb;
+uniform mat3 uM;
+uniform vec3 uLs, uC0, uAx, uS0, uS1, uS2, uS3, uPp, uHb;
+uniform vec4 uRr;
+const float R0 = .4527, HZ = .04, TR = .172, TRr = .07, PR = .07;
+float h13(vec3 p){ p = fract(p * .1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
+float vn3(vec3 p){ vec3 i = floor(p), f = fract(p), u = f * f * (3. - 2. * f); vec2 o = vec2(1., 0.);
+  return mix(mix(mix(h13(i), h13(i + o.xyy), u.x), mix(h13(i + o.yxy), h13(i + o.xxy), u.x), u.y),
+             mix(mix(h13(i + o.yyx), h13(i + o.xyx), u.x), mix(h13(i + o.yxx), h13(i + o.xxx), u.x), u.y), u.z); }
+float smin(float a, float b, float k){ float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
+/* Cono redondeado entre a (radio r1) y b (radio r2) */
+float sdRC(vec3 p, vec3 a, vec3 b, float r1, float r2){
+  vec3 ba = b - a; float l2 = dot(ba, ba), rr = r1 - r2, a2 = l2 - rr * rr, il2 = 1. / l2;
+  vec3 pa = p - a; float y = dot(pa, ba), z = y - l2;
+  vec3 xv = pa * l2 - ba * y; float x2 = dot(xv, xv), y2 = y * y * l2, z2 = z * z * l2;
+  float k = sign(rr) * rr * rr * x2;
+  if (sign(z) * a2 * z2 > k) return sqrt(x2 + z2) * il2 - r2;
+  if (sign(y) * a2 * y2 < k) return sqrt(x2 + y2) * il2 - r1;
+  return (sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
+}
+/* Cuerpo de terciopelo: tres conos encadenados que se doblan hacia la borla; nada por debajo del ribete */
+float body(vec3 p){
+  float d = sdRC(p, uS0, uS1, uRr.x, uRr.y);
+  d = smin(d, sdRC(p, uS1, uS2, uRr.y, uRr.z), .03);
+  d = smin(d, sdRC(p, uS2, uS3, uRr.z, uRr.w), .02);
+  return max(d, -dot(p - uC0, uAx) - .01);
+}
+float brim(vec3 p){ vec3 q = p - uC0; float y = dot(q, uAx); return length(vec2(length(q - uAx * y) - TR, y)) - TRr; }
+/* Pelo: la superficie del ribete y de la borla se abomba con ruido (solo cerca, que es lo caro) */
+float fluff(vec3 p, float d){ return d < .03 ? d - .012 * (vn3(p * 46.) - .4) : d; }
+float mapH(vec3 p, out float m){
+  float d = body(p), r = fluff(p, brim(p)), q = fluff(p + 3.1, length(p - uPp) - PR);
+  m = 0.;
+  if (r < d) { d = r; m = 1.; }
+  if (q < d) { d = q; m = 2.; }
+  return d;
+}
+float mapD(vec3 p){ float m; return mapH(p, m); }
+vec2 sph(vec3 ro, vec3 rd, vec3 c, float r){ vec3 oc = ro - c; float b = dot(oc, rd), h = b * b - dot(oc, oc) + r * r;
+  if (h < 0.) return vec2(1., -1.); h = sqrt(h); return vec2(-b - h, -b + h); }
+/* El sello como obstáculo: cilindro del radio del aro y del grosor de la moneda */
+float coinHit(vec3 ro, vec3 rd){
+  float t = 1e9;
+  if (abs(rd.z) > 1e-5) {
+    float t1 = (HZ - ro.z) / rd.z, t2 = (-HZ - ro.z) / rd.z;
+    vec3 p1 = ro + rd * t1, p2 = ro + rd * t2;
+    if (t1 > 0. && dot(p1.xy, p1.xy) < R0 * R0) t = min(t, t1);
+    if (t2 > 0. && dot(p2.xy, p2.xy) < R0 * R0) t = min(t, t2);
+  }
+  float a = dot(rd.xy, rd.xy), b = dot(ro.xy, rd.xy), c = dot(ro.xy, ro.xy) - R0 * R0, h = b * b - a * c;
+  if (a > 1e-6 && h > 0.) { float ts = (-b - sqrt(h)) / a; vec3 ps = ro + rd * ts; if (ts > 0. && abs(ps.z) < HZ) t = min(t, ts); }
+  return t;
+}
+/* Sombra suave: marcha hacia la luz (calidad completa) */
+float shadowH(vec3 ro, vec3 l){
+  float res = 1.;
+  float t = .004;
+  for (int i = 0; i < 22; i++) { float h = mapD(ro + l * t); res = min(res, 9. * h / t); t += clamp(h, .005, .06); if (res < .01 || t > 1.) break; }
+  return clamp(res, 0., 1.);
+}
+vec3 nrmH(vec3 p){ vec2 k = vec2(1., -1.) * .0016;
+  return normalize(k.xyy * mapD(p + k.xyy) + k.yyx * mapD(p + k.yyx) + k.yxy * mapD(p + k.yxy) + k.xxx * mapD(p + k.xxx)); }
+float aoH(vec3 p, vec3 n){ float o = 0., s = 1.;
+  for (int i = 1; i <= 4; i++) { float h = .014 * float(i); o += (h - mapD(p + n * h)) * s; s *= .7; }
+  return clamp(1. - 2.6 * o, 0., 1.); }
+vec3 shadeH(vec3 p, vec3 rd, float m){
+  vec3 n = nrmH(p), l = uLs * uM, f = normalize(vec3(.75, -.1, .65)) * uM;
+  float sh = shadowH(p + n * .004, l), ao = aoH(p, n), ndl = dot(n, l), ndv = clamp(-dot(n, rd), 0., 1.);
+  if (m < .5) {
+    if (dot(n, uAx) < -.8) return vec3(.05, .002, .006) * ao;   /* por dentro del gorro */
+    float w = clamp((ndl + .3) / 1.3, 0., 1.) * mix(.3, 1., sh);
+    vec3 c = vec3(.56, .012, .03) * (w * 1.05 + .2 * clamp(dot(n, f), 0., 1.) + .09) * ao;
+    c += vec3(.95, .3, .34) * pow(1. - ndv, 2.4) * .2 * mix(.45, 1., sh);   /* el terciopelo se aclara en los bordes */
+    return c * (.93 + .14 * vn3(p * 170.));
+  }
+  float w = clamp((ndl + .55) / 1.55, 0., 1.) * mix(.4, 1., sh);
+  vec3 c = vec3(.9, .88, .84) * (w * .95 + .18 * clamp(dot(n, f), 0., 1.) + .13) * (.5 + .5 * ao);
+  return c * (.8 + .26 * vn3(p * 130. + m));
+}
+void main(){
+  vec2 fq = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) / uRes - .5;
+  vec2 q = uHc + fq * uSpan;
+  vec3 ro = vec3(q / uS, 2.) * uM, rd = -(vec3(0., 0., 1.) * uM);
+  float pw = uSpan / uRes.x / uS, tc = coinHit(ro, rd), th = 1e9, cov = 0.;
+  vec2 b = sph(ro, rd, uHb, uRb);
+  if (b.y > 0. && b.x < b.y) {
+    float t = max(b.x, 0.), dm = 1e9, tm = t; bool hit = false;
+    for (int i = 0; i < 96; i++) {
+      float d = mapD(ro + rd * t);
+      if (d < dm) { dm = d; tm = t; }
+      if (d < pw * .3) { hit = true; break; }
+      t += d;
+      if (t > b.y || t > tc) break;
+    }
+    if (hit) { th = t; cov = 1.; } else if (dm < pw) { th = tm; cov = 1. - dm / pw; }
+  }
+  if (cov > 0. && th < tc) {
+    vec3 p = ro + rd * th; float m; mapH(p, m);
+    vec3 col = pow(clamp(shadeH(p, rd, m), 0., 1.), vec3(1. / 2.2));
+    gl_FragColor = vec4(col * cov, cov);
+    return;
+  }
+  /* Sombra del gorro sobre las caras del sello */
+  if (tc < 1e8) {
+    vec3 pc = ro + rd * tc, l = uLs * uM;
+    if (abs(abs(pc.z) - HZ) < .002) {
+      vec2 bs = sph(pc, l, uHb, uRb);
+      if (bs.y > 0. && bs.x < bs.y) {
+        float s = shadowH(pc, l), e = .5 - max(abs(fq.x), abs(fq.y));   /* se desvanece antes del borde del lienzo */
+        gl_FragColor = vec4(0., 0., 0., (1. - s) * .4 * smoothstep(0., .12, e)); return;
+      }
+    }
+  }
+  gl_FragColor = vec4(0.);
+}`;
   /* Geometría del gorro a partir del dibujo del SVG (40×32 unidades, girado 16° como en la cabecera), en el espacio del
      sello: lado del logo = 1, centro del sello = 0, x a la derecha, y hacia abajo, z hacia quien mira */
   function hatPt(hx, hy) {
@@ -1985,147 +2111,74 @@ void main(){
     H.prep = true;
     try { hatGL(function (o) { H.g3 = o; if (o) kick(); }); } catch (er) { H.g3 = null; if (window.console) console.warn(er); }
   }
-  /* Gorro 3D con three.js (r128, desde cdnjs): mallas suaves con antialias, terciopelo físico con brillo de borde,
-     ribete y borla de pelo con relieve y sombra real sobre el oro. Mismo sitio y bamboleo que antes (geometría en HG) */
-  var THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-  function loadThree(cb) {
-    if (window.THREE) { cb(true); return; }
-    var s = document.createElement('script'); s.src = THREE_URL; s.async = true; s.crossOrigin = 'anonymous';
-    s.onload = function () { cb(!!window.THREE); }; s.onerror = function () { cb(false); };
-    document.head.appendChild(s);
-  }
   function hatGL(cb) {
-    /* Sin GPU de verdad (renderizado por software) no merece la pena: gorro SVG */
-    var tc = document.createElement('canvas'), tg = null;
-    try { tg = tc.getContext('webgl'); } catch (er) { tg = null; }
-    if (!tg) { cb(null); return; }
-    var dbg = tg.getExtension('WEBGL_debug_renderer_info'), ren = dbg ? String(tg.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
-    var lx0 = tg.getExtension('WEBGL_lose_context'); if (lx0) lx0.loseContext();
-    if (/swiftshader|llvmpipe|software|basic render/i.test(ren) && !/[?&]gl=1\b/.test(location.search)) { cb(null); return; }
-    loadThree(function (ok) {
-      var o = null;
-      if (ok) { try { o = build(window.THREE); } catch (er) { if (window.console) console.warn(er); o = null; } }
-      cb(o);
-    });
-  }
-  function build(T) {
-    var cv = document.createElement('canvas');
+    var cv = document.createElement('canvas'), gl = null;
     cv.className = 'chat3'; cv.setAttribute('aria-hidden', 'true');
-    var rd = new T.WebGLRenderer({ canvas: cv, alpha: true, antialias: true, premultipliedAlpha: true, powerPreference: 'low-power' });
-    rd.setClearColor(0x000000, 0); rd.outputEncoding = T.sRGBEncoding;
-    rd.shadowMap.enabled = true; rd.shadowMap.type = T.PCFSoftShadowMap;   /* sombras del gorro sobre sí mismo */
-    var scene = new T.Scene(), cam = new T.OrthographicCamera(-1, 1, 1, -1, .1, 20);
-    cam.position.set(0, 0, 10); cam.lookAt(0, 0, 0);
-    /* Espacio del sello: y hacia abajo; three usa y hacia arriba */
-    var V = function (p) { return new T.Vector3(p[0], -p[1], p[2]); };
-    var root = new T.Group(); root.matrixAutoUpdate = false; scene.add(root);
-    /* Luces fijas respecto a quien mira: principal arriba a la izquierda y delante, relleno cálido y cielo suave */
-    scene.add(new T.HemisphereLight(0xfff3e6, 0x3a2410, .6));
-    var key = new T.DirectionalLight(0xfff2e2, 1.35);
-    key.position.set(-.45 * 5, .7 * 5, .55 * 5); key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 5; key.shadow.bias = -.0008; key.shadow.normalBias = .004;
-    var sc = key.shadow.camera; sc.left = -1.8; sc.right = 1.8; sc.top = 1.8; sc.bottom = -1.8; sc.near = .5; sc.far = 12;
-    scene.add(key); scene.add(key.target);
-    var fill = new T.DirectionalLight(0xffd8b0, .35); fill.position.set(3, -.4, 2.6); scene.add(fill);
-    /* El sello tapa lo que queda detrás (solo escribe profundidad) y recibe la sombra del gorro en sus dos caras */
-    var occ = new T.Mesh(new T.CylinderGeometry(.4527, .4527, .08, 72), new T.MeshBasicMaterial({ colorWrite: false }));
-    occ.rotation.x = Math.PI / 2; occ.renderOrder = -1; root.add(occ);
-    /* Sombra de contacto suave bajo el ribete, en las dos caras del sello (una sombra proyectada se cortaría en el borde
-       del lienzo del gorro al girar) */
-    var gcv = document.createElement('canvas'); gcv.width = gcv.height = 128;
-    var gx = gcv.getContext('2d'), gr = gx.createRadialGradient(64, 64, 0, 64, 64, 64);
-    gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(.55, 'rgba(0,0,0,.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-    gx.fillStyle = gr; gx.fillRect(0, 0, 128, 128);
-    var smat = new T.MeshBasicMaterial({ map: new T.CanvasTexture(gcv), transparent: true, depthWrite: false });
-    var blobs = [1, -1].map(function (sg) {
-      var d = new T.Mesh(new T.PlaneGeometry(1, 1), smat);
-      d.position.z = .0412 * sg; if (sg < 0) d.rotation.y = Math.PI; d.renderOrder = 1; root.add(d); return d;
-    });
-    /* Ruido para el pelo */
-    function h3(x, y, z) { var n = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return n - Math.floor(n); }
-    function vn(x, y, z) {
-      var ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z), fx = x - ix, fy = y - iy, fz = z - iz;
-      fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy); fz = fz * fz * (3 - 2 * fz);
-      function L(a, b, t) { return a + (b - a) * t; }
-      return L(L(L(h3(ix, iy, iz), h3(ix + 1, iy, iz), fx), L(h3(ix, iy + 1, iz), h3(ix + 1, iy + 1, iz), fx), fy),
-               L(L(h3(ix, iy, iz + 1), h3(ix + 1, iy, iz + 1), fx), L(h3(ix, iy + 1, iz + 1), h3(ix + 1, iy + 1, iz + 1), fx), fy), fz);
-    }
-    function furify(geo, amt) {
-      geo.computeVertexNormals();
-      var p = geo.attributes.position, n = geo.attributes.normal;
-      for (var i = 0; i < p.count; i++) {
-        var x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-        var k = amt * ((vn(x * 46, y * 46, z * 46) * .7 + vn(x * 110, y * 110, z * 110) * .3) - .4);
-        p.setXYZ(i, x + n.getX(i) * k, y + n.getY(i) * k, z + n.getZ(i) * k);
-      }
-      geo.computeVertexNormals(); return geo;
-    }
-    /* Colores del SVG de la cabecera, pasados a lineal (la salida es sRGB) para que no se vean rosados */
-    var velvet = new T.MeshPhysicalMaterial({ color: new T.Color(0xc8102e).convertSRGBToLinear(), roughness: .8, metalness: 0,
-      sheen: new T.Color(.42, .05, .07), side: T.DoubleSide });
-    var furM = new T.MeshStandardMaterial({ color: new T.Color(0xf4f1ec).convertSRGBToLinear(), roughness: 1, metalness: 0 });
-    /* Cuerpo: tubo que sigue la espina del gorro y se estrecha hacia la punta (se rehace con cada bamboleo) */
-    var NR = 72, NS = 36, pos = new Float32Array((NR + 1) * (NS + 1) * 3), idx = [], i, j;
-    for (i = 0; i < NR; i++) for (j = 0; j < NS; j++) {
-      var a = i * (NS + 1) + j, b = a + NS + 1;
-      idx.push(a, b, a + 1, b, b + 1, a + 1);
-    }
-    var bg = new T.BufferGeometry(); bg.setAttribute('position', new T.BufferAttribute(pos, 3)); bg.setIndex(idx);
-    var body = new T.Mesh(bg, velvet); body.castShadow = true; body.receiveShadow = true; root.add(body);
-    var brim = new T.Mesh(furify(new T.TorusGeometry(.172, .07, 40, 120), .016), furM); brim.castShadow = true; brim.receiveShadow = true; root.add(brim);
-    brim.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), V(HG.ax).normalize());
-    var pom = new T.Mesh(furify(new T.SphereGeometry(.07, 48, 32), .018), furM); pom.castShadow = true; pom.receiveShadow = true; root.add(pom);
-    var rr = HG.rr;
-    function radius(u) {   /* radios de HG en los cuatro puntos de la espina, con transición suave */
-      var x = u * 3, k = Math.min(2, Math.floor(x)), f = x - k; f = f * f * (3 - 2 * f);
-      return rr[k] + (rr[k + 1] - rr[k]) * f;
-    }
-    function shape(g) {
-      var pts = [V(g.c0).lerp(V(g.sp[0]), .55)].concat(g.sp.map(V));
-      var curve = new T.CatmullRomCurve3(pts, false, 'centripetal'), fr = curve.computeFrenetFrames(NR, false), q = 0;
-      for (var a = 0; a <= NR; a++) {
-        var u = a / NR, c = curve.getPointAt(u), N = fr.normals[a], B = fr.binormals[a];
-        var r = u < .2 ? rr[0] + (radius(0) - rr[0]) * (u / .2) : radius((u - .2) / .8);
-        r *= 1 + .025 * Math.sin(u * 23);   /* pliegues suaves del terciopelo */
-        for (var s2 = 0; s2 <= NS; s2++) {
-          var th = s2 / NS * 6.2832, cs = Math.cos(th), sn = Math.sin(th);
-          pos[q++] = c.x + r * (cs * N.x + sn * B.x); pos[q++] = c.y + r * (cs * N.y + sn * B.y); pos[q++] = c.z + r * (cs * N.z + sn * B.z);
-        }
-      }
-      bg.attributes.position.needsUpdate = true; bg.computeVertexNormals(); bg.computeBoundingSphere();
-      brim.position.copy(V(g.c0)); pom.position.copy(V(g.pp));
-      var c0 = V(g.c0), ang = Math.atan2(-HG.bd[1], HG.bd[0]);
-      blobs.forEach(function (d) { d.position.x = c0.x + .03; d.position.y = c0.y - .045; d.rotation.z = ang * (d.position.z > 0 ? 1 : -1); d.scale.set(.62, .26, 1); });
-    }
-    var self = { cv: cv, css: 0, q: 1, last: '', lost: false, lo: false, px1: new Uint8Array(4) };
+    try { gl = cv.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false }); } catch (er) { gl = null; }
+    if (!gl) { cb(null); return; }
+    var dbg = gl.getExtension('WEBGL_debug_renderer_info'), ren = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+    var hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
+    function lose() { var lx = gl.getExtension('WEBGL_lose_context'); if (lx) lx.loseContext(); }
+    if ((/swiftshader|llvmpipe|software|basic render/i.test(ren) && !/[?&]gl=1\b/.test(location.search)) || !hp || hp.precision < 20) { lose(); cb(null); return; }
+    var par = gl.getExtension('KHR_parallel_shader_compile'), pr = gl.createProgram(), tC = now();
+    function shd(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); gl.attachShader(pr, s); return s; }
+    shd(gl.VERTEX_SHADER, 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}');
+    var fsh = shd(gl.FRAGMENT_SHADER, GLSL_H);
+    gl.bindAttribLocation(pr, 0, 'a'); gl.linkProgram(pr);
+    (function wait() {
+      if (par && !gl.getProgramParameter(pr, par.COMPLETION_STATUS_KHR)) { if (now() - tC > 8000) { lose(); cb(null); } else setTimeout(wait, 60); return; }
+      if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { if (window.console) console.warn(gl.getShaderInfoLog(fsh) || gl.getProgramInfoLog(pr)); lose(); cb(null); return; }
+      cb(setup());
+    })();
+    function setup() {
+    gl.useProgram(pr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    var U3 = {};
+    ['uRes', 'uHc', 'uSpan', 'uS', 'uRb', 'uM', 'uLs', 'uC0', 'uAx', 'uS0', 'uS1', 'uS2', 'uS3', 'uPp', 'uHb', 'uRr'].forEach(function (n) { U3[n] = gl.getUniformLocation(pr, n); });
+    var Ls = [-.45, -.7, .55], ll = Math.hypot(Ls[0], Ls[1], Ls[2]);
+    gl.uniform3fv(U3.uLs, [Ls[0] / ll, Ls[1] / ll, Ls[2] / ll]);
+    gl.uniform1f(U3.uSpan, 2 * HG.rb); gl.uniform1f(U3.uRb, HG.rb); gl.uniform4fv(U3.uRr, HG.rr);
+    gl.uniform3fv(U3.uAx, HG.ax);
+    gl.clearColor(0, 0, 0, 0);
+    var self = { cv: cv, css: 0, q: 1, last: '', lost: false, px1: new Uint8Array(4) };
     cv.addEventListener('webglcontextlost', function (ev) { ev.preventDefault(); self.lost = true; });
-    self.setLo = function (v) { if (v === self.lo) return; self.lo = v; self.css = 0; };
     /* Tamaño del lienzo (cubre el gorro en cualquier postura) y su sitio: centrado en el sello dentro de .chat3w */
     self.size = function (wcss) {
-      var css = Math.round(2 * HG.rb * wcss), pr = Math.min(window.devicePixelRatio || 1, 2) * self.q * (self.lo ? .75 : 1), fw = wcss * 1.06;
-      if (css === self.css && Math.abs(rd.getPixelRatio() - pr) < .01) return;
-      self.css = css; rd.setPixelRatio(pr); rd.setSize(css, css, false);
+      var css = Math.round(2 * HG.rb * wcss), w = Math.max(16, Math.round(css * Math.min(window.devicePixelRatio || 1, 2) * self.q)), fw = wcss * 1.06;
+      if (css === self.css && cv.width === w) return;
+      self.css = css; cv.width = cv.height = w; gl.viewport(0, 0, w, w);
       cv.style.width = cv.style.height = css + 'px';
       cv.style.left = (1.1 * fw - css / 2).toFixed(1) + 'px'; cv.style.top = (1.3 * fw - css / 2).toFixed(1) + 'px';
-      self.last = '';
+      gl.uniform2f(U3.uRes, w, w); self.last = '';
     };
-    /* Pinta con la pose del sello (m) y la del gorro (g, ya doblado por el bamboleo); devuelve el centro en pantalla */
+    /* Pinta el gorro con la pose del sello (m) y la del propio gorro (g: puntos ya doblados por el bamboleo) */
     self.draw = function (m, g) {
       if (self.lost) return;
-      var R = [[m.cy, 0, m.sy], [m.sy * m.sx, m.cx, -m.cy * m.sx], [-m.sy * m.cx, m.sx, m.cy * m.cx]], s = m.s, f = [1, -1, 1];
-      var E = function (r, c) { return R[r][c] * f[r] * f[c] * s; };
-      root.matrix.set(E(0, 0), E(0, 1), E(0, 2), 0, E(1, 0), E(1, 1), E(1, 2), 0, E(2, 0), E(2, 1), E(2, 2), 0, 0, 0, 0, 1);
-      root.matrixWorldNeedsUpdate = true;
-      var hb = g.hb, hc = [s * (R[0][0] * hb[0] + R[0][1] * hb[1] + R[0][2] * hb[2]), s * (R[1][0] * hb[0] + R[1][1] * hb[1] + R[1][2] * hb[2])];
-      cam.left = hc[0] - HG.rb; cam.right = hc[0] + HG.rb; cam.top = -hc[1] + HG.rb; cam.bottom = -hc[1] - HG.rb; cam.updateProjectionMatrix();
-      shape(g); rd.render(scene, cam);
+      var R = [[m.cy, 0, m.sy], [m.sy * m.sx, m.cx, -m.cy * m.sx], [-m.sy * m.cx, m.sx, m.cy * m.cx]];
+      gl.uniformMatrix3fv(U3.uM, false, [R[0][0], R[1][0], R[2][0], R[0][1], R[1][1], R[2][1], R[0][2], R[1][2], R[2][2]]);
+      gl.uniform1f(U3.uS, m.s);
+      var hc = [m.s * (R[0][0] * g.hb[0] + R[0][1] * g.hb[1] + R[0][2] * g.hb[2]), m.s * (R[1][0] * g.hb[0] + R[1][1] * g.hb[1] + R[1][2] * g.hb[2])];
+      gl.uniform2f(U3.uHc, hc[0], hc[1]);
+      gl.uniform3fv(U3.uC0, g.c0); gl.uniform3fv(U3.uS0, g.sp[0]); gl.uniform3fv(U3.uS1, g.sp[1]); gl.uniform3fv(U3.uS2, g.sp[2]); gl.uniform3fv(U3.uS3, g.sp[3]);
+      gl.uniform3fv(U3.uPp, g.pp); gl.uniform3fv(U3.uHb, g.hb);
+      gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLES, 0, 3);
       return hc;
     };
+    /* Mide lo que tarda la GPU con el gorro de frente; si va lenta, menos resolución; si aun así no, gorro plano */
     self.check = function (m, g) {
-      var t = now(), gl = rd.getContext(); self.draw(m, g); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, self.px1); return now() - t;
+      var t = now(); self.draw(m, g); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, self.px1); return now() - t;
     };
-    self.lose = function () { try { rd.dispose(); rd.forceContextLoss(); } catch (er) {} };
+    self.lose = lose;
+    /* Mientras el sello se mueve, el gorro se pinta a menos resolución (no se nota en movimiento y cuesta un tercio) */
+    self.lo = false;
+    self.setLo = function (v) { if (v === self.lo) return; self.lo = v; self.css = 0; };
+    /* Primera pintura de calentamiento con el lienzo aún fuera de la página: el driver prepara el shader sin esperar */
+    gl.viewport(0, 0, 16, 16); gl.uniform2f(U3.uRes, 16, 16);
+    self.draw({ cy: 1, sy: 0, cx: 1, sx: 0, s: 1 }, { c0: HG.c0, sp: HG.sp, pp: HG.pp, hb: HG.hb });
     return self;
+    }
   }
   function hatStep(ryd, rxd, ht, op, s) {
     var H = heroHat, m = hero.m;
@@ -2175,7 +2228,7 @@ void main(){
       var g = { c0: mv(HG.c0), sp: [mv(sp[0]), mv(up[0]), mv(tip[0]), mv(tip[1])], pp: mv(tip[2]), hb: mv(HG.hb) };
       var pose = [m.cy, m.sy, m.cx, m.sx, m.s, H.a, H.f, H.dy].map(function (v) { return v.toFixed(4); }).join();
       /* En movimiento, baja resolución; cuatro fotogramas quieto y se repinta nítido */
-      if (pose !== H.pose) { H.pose = pose; H.still = 0; if (H.tested) H.g3.setLo(true); }
+      if (pose !== H.pose) { H.pose = pose; H.still = 0; }
       else if (H.g3.lo && ++H.still >= 4) H.g3.setLo(false);
       H.g3.size(Wc);
       if (H.g3.lo) H.busy = true;

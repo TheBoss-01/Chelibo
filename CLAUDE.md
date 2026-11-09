@@ -57,13 +57,11 @@
   Navidad: nieve continua (dos láminas pintadas una vez que caen con animación CSS, sin coste de procesador en reposo),
   guirnaldas en canvas (`data-guirnalda`, luces en dos capas que titilan), nieve que se acumula sobre las tarjetas de la
   galería (`.cap`, 42 s), gorro en el logo de la cabecera, acebo en los titulares, estrellas y textos de fiesta.
-  El sello interactivo de la portada lleva el mismo gorro, en 3D con three.js r128 (cargado desde cdnjs solo en la versión
-  navideña: `loadThree`, `hatGL`, `build`; geometría en `HG`, sacada del dibujo del SVG de la cabecera): tubo de terciopelo
-  que sigue la espina y se dobla, ribete toroidal y borla con relieve de pelo, antialias y colores del SVG en lineal.
-  Pose del sello en `hero.m`; un cilindro que solo escribe profundidad hace que el sello tape lo que queda detrás, y una
-  sombra de contacto suave bajo el ribete (una sombra proyectada se cortaba en el borde del lienzo). Solo se pinta si
-  cambia algo. Cae sobre el sello al aparecer y se bambolea como un muelle. En las pruebas de la nube cdnjs está
-  bloqueado: three.js r128 se baja de npm y se sirve con `page.route` (ver `?gl=1`).
+  El sello interactivo de la portada lleva el mismo gorro, en 3D con trazado de rayos propio en WebGL (`heroHat`/`hatStep()`,
+  `GLSL_H`, `hatGL()`, geometría en `HG` sacada del dibujo del SVG de la cabecera: tres conos de terciopelo que se
+  doblan, ribete toroidal y borla de pelo con ruido), a resolución completa y con sombras de marcha completa. Se probó
+  con three.js y al usuario le pareció peor: se volvió a esta versión. Se pinta solo cuando cambia algo; el sello tapa lo
+  que queda detrás y la sombra del gorro cae sobre el oro. Cae sobre el sello al aparecer y se bambolea como un muelle.
   El lienzo va dentro de `.chat3w`, que lo recorta 10 px antes del borde derecho (`M.hatRoom`): a 900-1100 px de ancho
   el sello está cerca del borde y si no la página se desplazaría de lado. Si la primera pintura tarda mucho baja la
   resolución, y el regulador `QL` también se la baja. Sin WebGL por hardware (o si ni así llega) se usa el gorro SVG
@@ -73,8 +71,8 @@
   segundo y sincronizados (`steps()`, duraciones y retrasos múltiplos de 1/30 s; el vaivén y la acumulación tienen la curva
   en fotogramas clave). Así el navegador recompone la pantalla 30 veces por segundo en vez de 60 (o 120). Medido en el
   navegador de la nube: en reposo, de unos 380 a 240 ms de procesador por segundo (sin adornos es 0). Si se añade otra
-  animación continua al tema, que siga la misma regla o vuelve a 60 imágenes por segundo. El gorro 3D se prepara al empezar
-  la intro (`prepHat`) y se pinta a algo menos de resolución mientras el sello se mueve (`setLo`).
+  animación continua al tema, que siga la misma regla o vuelve a 60 imágenes por segundo. El gorro 3D se compila en
+  segundo plano al empezar la intro (`prepHat`).
 - Reposo: a los 12 s sin tocar nada se pone la clase `sleep` (pausa animaciones de CSS) con un temporizador en `kick()`,
   aunque el bucle de animación ya se haya parado.
 - En móvil la portada va centrada (sello, textos y botones).
