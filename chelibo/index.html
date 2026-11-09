@@ -35,6 +35,8 @@
   [hidden] { display: none !important; }
   html { background: var(--bg); scroll-padding-top: 76px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+  /* El hueco de la barra de scroll queda reservado: al desbloquear la página tras la intro nada se mueve de sitio */
+  html { scrollbar-gutter: stable; }
   html.lock, html.lock body { overflow: hidden; }
   body {
     margin: 0; background: var(--bg); color: var(--fg);
@@ -1037,7 +1039,7 @@ var CHELIBO = {
   var QL = lite ? [[1.25, 12], [1, 8]] : [[2, 18], [1.5, 12], [1.15, 8]];
 
   /* ---------- 6. Intro: dos versiones, 'sello' y 'moneda' (se elige en CHELIBO.intro o con #intro-sello / #intro-moneda) ---------- */
-  var readyT = null, introOn = false, skipSpin = false, heroShown = false, floatOn = false;
+  var readyT = null, introOn = false, skipSpin = false, heroShown = false, floatOn = false, landHero = function () {};
   function ready() { if (readyT !== null) return; readyT = now(); root.classList.add('ready'); kick(); }
   var heroWrap = $('#heroWrap'), heroCanvas = $('#heroCoin');
   var hero = Coin(heroCanvas, { layers: QL[0][1], depth: .08, pad: 1.06, dpr: QL[0][0], tintScale: .45, tints: TINTS });
@@ -1051,8 +1053,13 @@ var CHELIBO = {
       /* El sello dorado de la intro vuela a la portada y allí pasa a ser el sello interactivo */
       skipSpin = true; hk = 0; intro.classList.add('reveal');
       setTimeout(function () { introOn = false; ready(); }, 150);
-      setTimeout(function () { heroShown = true; kick(); }, 860);
-      setTimeout(function () { if (intro.parentNode) intro.parentNode.removeChild(intro); }, 900);
+      /* El sello interactivo aparece cuando el que vuela ha llegado de verdad (no a tiempo fijo): ver landHero() */
+      var landed = false;
+      landHero = function () {
+        if (landed) return; landed = true; heroShown = true; kick();
+        setTimeout(function () { if (intro.parentNode) intro.parentNode.removeChild(intro); }, 320);
+      };
+      setTimeout(landHero, 1400);   /* por si no llega el aviso del final de la transición */
     } else {
       intro.classList.add('out');
       setTimeout(function () { introOn = false; ready(); }, 380);
@@ -1727,8 +1734,10 @@ void main(){
       g.globalAlpha = 1;
     }
     function flyToHero() {
-      var cw = Math.round(coinCv.offsetWidth * dpr), ch = Math.round(coinCv.offsetHeight * dpr);
-      coinCv.width = cw; coinCv.height = ch;
+      /* Resolución para el tamaño de llegada (el vuelo lo amplía): así no se ve borroso al cambiar al sello interactivo */
+      var kz = Math.max(1, heroWrap.offsetWidth / (stage.offsetWidth || 1)), dz = Math.min(window.devicePixelRatio || 1, 2) * kz;
+      var cw = Math.round(coinCv.offsetWidth * dz), ch = Math.round(coinCv.offsetHeight * dz);
+      coinCv.width = cw; coinCv.height = ch; SP = Math.round(stage.offsetWidth * dz);
       /* El sello que vuela es una copia exacta del sello interactivo (mismo dibujo, relieve y brillo): sin salto al cambiar */
       var cx2 = coinCv.getContext('2d');
       if (hero.ok) {   /* pose en la que el sello interactivo empieza tras el vuelo */
@@ -1741,11 +1750,21 @@ void main(){
       fx.style.visibility = 'hidden'; glowEl.style.opacity = '0';
       scene.style.transform = 'none';
       intro.classList.add('reveal');
+      root.classList.remove('lock');   /* desbloquear antes de medir: el destino del vuelo es el sitio definitivo */
       void stage.offsetWidth;
       var hr = heroWrap.getBoundingClientRect(), s2 = stage.getBoundingClientRect();
       var dx = hr.left + hr.width / 2 - (s2.left + s2.width / 2), dy = hr.top + hr.height / 2 - (s2.top + s2.height / 2);
       stage.style.transform = 'translate3d(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px,0) scale(' + (hr.width / s2.width).toFixed(4) + ')';
       finish('handoff');
+      /* Al llegar: aparece el sello interactivo debajo (idéntico) y el que voló se desvanece encima, sin corte */
+      var onEnd = function (ev) {
+        if (ev && ev.propertyName && ev.propertyName !== 'transform') return;
+        stage.removeEventListener('transitionend', onEnd);
+        landHero();
+        requestAnimationFrame(function () { requestAnimationFrame(function () { stage.style.transition = 'opacity .28s ease'; stage.style.opacity = '0'; }); });
+      };
+      stage.addEventListener('transitionend', onEnd);
+      setTimeout(onEnd, 1200);
       freed = true;
       setTimeout(function () {
         fx.width = fx.height = 1; if (G3) G3.free();
